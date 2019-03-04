@@ -1,9 +1,9 @@
 # traytr
 ### _Ivan Podmazov <ivanpzv8@gmail.com>_
 
-This is a project to do ... something.
+**traytr** (pronounced like *traitor* /ˈtreɪtə/) is a Terminal (Text) RAY TRacer engine.
 
 ## License
 
-GPLv2
+GNU General Public License v2
 
