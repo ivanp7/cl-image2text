@@ -6,7 +6,7 @@
   :license  "GPLv2"
   :version "0.0.1"
   :serial t
-  :depends-on (#:traytr #:cl-charms)
-  :components ((:file "package-test")
+  :depends-on (#:traytr)
+  :components ((:file "t/package-test")
                (:file "t/char-table")))
 

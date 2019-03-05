@@ -1,48 +1,62 @@
-;;;; traytr.lisp
+;;;; characters.lisp
 
 (in-package #:traytr)
 
-(defun point (x y)
-  (cons x y))
+;;; COLORS
 
-(defvar *character-resolution* (point 8 8))
+(defun make-color (red green blue)
+  (check-type red (integer 0 255))
+  (check-type green (integer 0 255))
+  (check-type blue (integer 0 255))
+  (vector red green blue))
 
-(defvar *characters* nil)
+(defmacro red (color)
+  `(svref ,color 0))
 
-(defun define-terminal-character (chr kwrd &optional (char-resolution (point 1 1)))
-  (setf *characters* (acons kwrd chr *characters*)))
+(defmacro green (color)
+  `(svref ,color 1))
 
-(define-terminal-character #\Space :empty) ;U+0020
-(define-terminal-character #\▁ :lower-1/8 (point 1 8)) ;U+2581
-(define-terminal-character #\▂ :lower-2/8 (point 1 4)) ;U+2582
-(define-terminal-character #\▃ :lower-3/8 (point 1 8)) ;U+2583
-(define-terminal-character #\▄ :lower-4/8 (point 1 2)) ;U+2584
-(define-terminal-character #\▅ :lower-5/8 (point 1 8)) ;U+2585
-(define-terminal-character #\▆ :lower-6/8 (point 1 4)) ;U+2586
-(define-terminal-character #\▇ :lower-7/8 (point 1 8)) ;U+2587
-(define-terminal-character #\█ :full) ;U+2588
-(define-terminal-character #\▉ :left-7/8 (point 8 1)) ;U+2589
-(define-terminal-character #\▊ :left-6/8 (point 4 1)) ;U+258A
-(define-terminal-character #\▋ :left-5/8 (point 8 1)) ;U+258B
-(define-terminal-character #\▌ :left-4/8 (point 2 1)) ;U+258C
-(define-terminal-character #\▍ :left-3/8 (point 8 1)) ;U+258D
-(define-terminal-character #\▎ :left-2/8 (point 4 1)) ;U+258E
-(define-terminal-character #\▏ :left-1/8 (point 1 1)) ;U+258F
+(defmacro blue (color)
+  `(svref ,color 2))
 
-(define-terminal-character #\▖ :lowerleft (point 2 2)) ;U+2596
-(define-terminal-character #\▗ :lowerright (point 2 2)) ;U+2597
-(define-terminal-character #\▘ :upperleft (point 2 2)) ;U+2598
-(define-terminal-character #\▝ :upperright (point 2 2)) ;U+259D
+;; colored character
+(defun make-cc (char fg bg)
+  (vector char fg bg))
 
-(define-terminal-character #\▙ :inv-upperright (point 2 2)) ;U+2599
-(define-terminal-character #\▛ :inv-lowerright (point 2 2)) ;U+259B
-(define-terminal-character #\▜ :inv-lowerleft (point 2 2)) ;U+259C
-(define-terminal-character #\▟ :inv-upperleft (point 2 2)) ;U+259F
+(defmacro cc-char (colchar)
+  `(svref ,colchar 0))
 
-(define-terminal-character #\▚ :upperleft-lowerright (point 2 2)) ;U+259A
-(define-terminal-character #\▞ :lowerleft-upperright (point 2 2)) ;U+259E
+(defmacro cc-fg-color (colchar)
+  `(svref ,colchar 1))
 
-(define-terminal-character #\░ :full-light) ;U+2591
-(define-terminal-character #\▒ :full-medium) ;U+2592
-(define-terminal-character #\▓ :full-dark) ;U+2593
+(defmacro cc-bg-color (colchar)
+  `(svref ,colchar 2))
+
+;;; CHARACTERS
+
+(defconstant +shade-blocks+ " ░▒▓█")
+(defconstant +down-blocks+ " ▁▂▃▄▅▆▇█")
+(defconstant +left-blocks+ " ▏▎▍▌▋▊▉█")
+(defconstant +quadrant-blocks+ "▝▗▖▘")
+
+(defmacro shade-block-cc (n fg bg)
+  `(make-cc (aref ,+shade-blocks+ ,n) ,fg ,bg))
+
+(defmacro down-block-cc (n fg bg)
+  `(make-cc (aref ,+down-blocks+ ,n) ,fg ,bg))
+
+(defmacro up-block-cc (n fg bg)
+  `(down-block-cc ,(- 7 n) ,bg ,fg))
+
+(defmacro left-block-cc (n fg bg)
+  `(make-cc (aref ,+left-blocks+ ,n) ,fg ,bg))
+
+(defmacro right-block-cc (n fg bg)
+  `(left-block-cc ,(- 7 n) ,bg ,fg))
+
+(defmacro quadrant-block-cc (n fg bg)
+  `(make-cc (aref ,+quarter-blocks+ ,(1- n)) ,fg ,bg))
+
+(defmacro inv-quadrant-block-cc (n fg bg)
+  `(make-cc (aref ,+quarter-blocks+ ,(1- n)) ,bg ,fg))
 
