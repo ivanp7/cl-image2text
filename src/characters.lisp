@@ -19,6 +19,10 @@
 (defmacro blue (color)
   `(svref ,color 2))
 
+(alexandria:define-constant +black-color+ (make-color 0 0 0) :test #'equal)
+
+;;; CHARACTERS
+
 ;; colored character
 (defun make-cc (char fg bg)
   (vector char fg bg))
@@ -32,12 +36,13 @@
 (defmacro cc-bg-color (colchar)
   `(svref ,colchar 2))
 
-;;; CHARACTERS
+(alexandria:define-constant +empty-cc+ (make-cc #\Space +black-color+ +black-color+)
+                            :test #'equal)
 
-(defconstant +shade-blocks+ " ░▒▓█")
-(defconstant +down-blocks+ " ▁▂▃▄▅▆▇█")
-(defconstant +left-blocks+ " ▏▎▍▌▋▊▉█")
-(defconstant +quadrant-blocks+ "▝▗▖▘")
+(alexandria:define-constant +shade-blocks+ " ░▒▓█" :test #'equal)
+(alexandria:define-constant +down-blocks+ " ▁▂▃▄▅▆▇█" :test #'equal)
+(alexandria:define-constant +left-blocks+ " ▏▎▍▌▋▊▉█" :test #'equal)
+(alexandria:define-constant +quadrant-blocks+ "▝▗▖▘" :test #'equal)
 
 (defmacro shade-block-cc (n fg bg)
   `(make-cc (aref ,+shade-blocks+ ,n) ,fg ,bg))
@@ -55,8 +60,8 @@
   `(left-block-cc ,(- 7 n) ,bg ,fg))
 
 (defmacro quadrant-block-cc (n fg bg)
-  `(make-cc (aref ,+quarter-blocks+ ,(1- n)) ,fg ,bg))
+  `(make-cc (aref ,+quadrant-blocks+ ,(1- n)) ,fg ,bg))
 
 (defmacro inv-quadrant-block-cc (n fg bg)
-  `(make-cc (aref ,+quarter-blocks+ ,(1- n)) ,bg ,fg))
+  `(quadrant-block-cc ,n ,bg ,fg))
 

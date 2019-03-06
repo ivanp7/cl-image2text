@@ -13,10 +13,26 @@
 (defmacro point-y (point)
   `(cdr ,point))
 
-;; 1920x1080, font Terminus u12n, tmux window, i3 status bar
-(defparameter *screen-size* (point 319 87)) 
-
 ;;; TEXT BUFFER
 
-(defvar *character-resolution* (point 8 8))
+;; 1920x1080, font Terminus u12n, i3 window with size of 75%x75% of the screen
+(defparameter *screen-size* (point 238 66)) 
+
+(defun make-text-buffer (&optional (size *screen-size*))
+  (make-array `(,(point-x size) ,(point-y size)) 
+              :element-type 'vector :initial-element +empty-cc+))
+
+(defvar *text-buffer* (make-text-buffer))
+
+(defun resize-text-buffer (buffer size)
+  (adjust-array buffer size))
+
+(defmacro resize-text-buffer (size &optional (buffer *text-buffer*))
+  `(setf ,buffer (adjust-array ,buffer ,size)))
+
+(defmacro text-buffer-element (buffer point)
+  (alexandria:with-gensyms 
+    (buf pt)
+    `(let ((,buf ,buffer) (,pt ,point))
+       (aref ,buf (point-x ,pt) (point-y ,pt)))))
 

@@ -6,11 +6,12 @@
 
 (defvar *output-server* nil)
 (defvar *output-server-thread* nil)
+
 (defvar *output-server-sockets* nil)
 
 ;; switch to alt. buffer, clear screen, hide cursor and move to (1,1)
-(defconstant +initial-output-string+ 
-             (format nil "~C[?1049h~:*~C[2J~:*~C[?25l~:*~C[H") #\Esc)
+(defparameter *initial-output-string* "")
+(defparameter *final-output-string* "")
 
 (let ((eof-value (gensym)))
   (defun socket-closed-p (socket)
@@ -51,7 +52,7 @@
                 (let (socket)
                   (loop
                     (setf socket (usocket:socket-accept *output-server*))
-                    (output +initial-output-string+ socket)
+                    (output *initial-output-string* socket)
                     (setf *output-server-sockets*
                           (cons socket *output-server-sockets*)))))
             :name "TRAYTR output server listener"))
@@ -61,6 +62,7 @@
   (when *output-server*
     (bt:destroy-thread *output-server-thread*)
     (setf *output-server-thread* nil)
+    (output-broadcast *final-output-string*)
     (dolist (socket *output-server-sockets*)
       (unless (socket-closed-p socket)
         (usocket:socket-close socket)))

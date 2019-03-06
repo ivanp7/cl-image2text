@@ -8,5 +8,5 @@
   :serial t
   :depends-on (#:traytr)
   :components ((:file "t/package-test")
-               (:file "t/char-table")))
+               (:file "t/server-and-color-test")))
 
