@@ -4,8 +4,6 @@
 
 (defparameter *port* 50511)
 
-(defvar *io-server* nil)
-(defvar *io-server-thread* nil)
 (defvar *io-server-stop-flag* t)
 
 (defmacro define-io-server-function (name &body body)
@@ -18,6 +16,9 @@
   (force-output stream))
 
 (defvar *io-server-function* #'echo-server)
+
+(defvar *io-server* nil)
+(defvar *io-server-thread* nil)
 
 (defun start-io-server (&optional (port *port*) (host usocket:*wildcard-host*))
   (unless *io-server*

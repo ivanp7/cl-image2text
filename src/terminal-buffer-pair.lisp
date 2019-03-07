@@ -4,9 +4,8 @@
 
 ;;; CHARACTER BUFFER
 
-(defun make-char-buffer (size)
-  (make-array `(,(point-x size) ,(point-y size)) 
-              :element-type 'character :initial-element #\Space))
+(defun make-char-buffer (x y)
+  (make-array `(,x ,y) :element-type 'character :initial-element #\Space))
 
 (defun get-char-buffer-element (buffer x y)
   (declare (type (simple-array character (* *)) buffer)
@@ -22,9 +21,8 @@
 
 ;;; COLOR BUFFER
 
-(defun make-color-buffer (size)
-  (make-array `(,(point-x size) ,(point-y size) 6) 
-              :element-type '(integer 0 255) :initial-element 0))
+(defun make-color-buffer (x y)
+  (make-array `(,x ,y 6) :element-type '(integer 0 255) :initial-element 0))
 
 (defun get-color-buffer-element (buffer x y)
   (declare (type (simple-array (integer 0 255) (* * 6)) buffer)
@@ -34,7 +32,7 @@
 
 (defmacro with-color-buffer-element (buffer x y &body body)
   `(multiple-value-bind (fg-red fg-green fg-blue bg-red bg-green bg-blue) 
-     (get-color-buffer-element ,buffer ,x ,y)
+       (get-color-buffer-element ,buffer ,x ,y)
      ,@body))
 
 (defun set-color-buffer-element (buffer x y fg-red fg-green fg-blue bg-red bg-green bg-blue)
@@ -51,8 +49,8 @@
 
 ;;; CHARACTER-COLOR BUFFER PAIR
 
-(defun make-buffer-pair (size)
-  (cons (make-char-buffer size) (make-color-buffer size)))
+(defun make-buffer-pair (x y)
+  (cons (make-char-buffer x y) (make-color-buffer x y)))
 
 (defmacro char-buffer (buffer-pair)
   `(car ,buffer-pair))
@@ -85,8 +83,8 @@
                       `(- ,(1- (length block-string-value)) ,param-name) 
                       param-name))
         (color-values-list (if inverse-p
-                             ``(bg-red bg-green bg-blue fg-red fg-green fg-blue)
-                             ``(fg-red fg-green fg-blue bg-red bg-green bg-blue)))) 
+                             ``(,bg-red ,bg-green ,bg-blue ,fg-red ,fg-green ,fg-blue)
+                             ``(,fg-red ,fg-green ,fg-blue ,bg-red ,bg-green ,bg-blue)))) 
     `(defmacro ,macro-name (buffer-pair x y ,param-name fg-red fg-green fg-blue bg-red bg-green bg-blue)
        `(set-buffer-pair-element ,buffer-pair ,x ,y
                                  (aref ,,block-string-value ,,index-expr)
@@ -94,21 +92,21 @@
 
 
 (alexandria:define-constant +shade-blocks+ " ░▒▓█" :test #'equal)
-(define-buffer-pair-element-setter set-bp-element/shade-block shade-degree +shade-blocks+)
+(define-buffer-pair-element-setter set-shade-block shade-degree +shade-blocks+)
 
 (alexandria:define-constant +down-blocks+ " ▁▂▃▄▅▆▇█" :test #'equal)
-(define-buffer-pair-element-setter set-bp-element/down-block height +down-blocks+)
-(define-buffer-pair-element-setter set-bp-element/up-block height +down-blocks+ t)
+(define-buffer-pair-element-setter set-down-block height +down-blocks+)
+(define-buffer-pair-element-setter set-up-block height +down-blocks+ t)
 
 (alexandria:define-constant +left-blocks+ " ▏▎▍▌▋▊▉█" :test #'equal)
-(define-buffer-pair-element-setter set-bp-element/left-block width +left-blocks+)
-(define-buffer-pair-element-setter set-bp-element/right-block width +left-blocks+ t)
+(define-buffer-pair-element-setter set-left-block width +left-blocks+)
+(define-buffer-pair-element-setter set-right-block width +left-blocks+ t)
 
 (alexandria:define-constant +quadrant-blocks+ "▝▗▖▘" :test #'equal)
-(define-buffer-pair-element-setter set-bp-element/quadrant-block quarter +quadrant-blocks+)
-(define-buffer-pair-element-setter set-bp-element/inv-quadrant-block quarter +quadrant-blocks+ t)
+(define-buffer-pair-element-setter set-quadrant-block quarter +quadrant-blocks+)
+(define-buffer-pair-element-setter set-inv-quadrant-block quarter +quadrant-blocks+ t)
 
 (alexandria:define-constant +quadrant-block-pair+ "▞" :test #'equal)
-(define-buffer-pair-element-setter set-bp-element/quadrant-block-pair num +quadrant-block-pair+)
-(define-buffer-pair-element-setter set-bp-element/inv-quadrant-block-pair num +quadrant-block-pair+ t)
+(define-buffer-pair-element-setter set-quadrant-block-pair num +quadrant-block-pair+)
+(define-buffer-pair-element-setter set-inv-quadrant-block-pair num +quadrant-block-pair+ t)
 
