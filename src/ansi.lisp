@@ -12,31 +12,13 @@
              (format nil "~C[?1049l~:*~C[2J~:*~C[?25h" #\Esc)
              :test #'equal)
 
-(defun ansi-cc-string (colchar)
+(defun cc-to-string (cc)
   (format nil "~C[38;2;~A;~A;~Am~C[48;2;~A;~A;~Am~A" 
           #\Esc 
-          (red (cc-fg-color colchar))
-          (green (cc-fg-color colchar))
-          (blue (cc-fg-color colchar))
+          (red (fg-color cc)) (green (fg-color cc)) (blue (fg-color cc))
           #\Esc 
-          (red (cc-bg-color colchar))
-          (green (cc-bg-color colchar))
-          (blue (cc-bg-color colchar))
-          (cc-char colchar)))
+          (red (bg-color cc)) (green (bg-color cc)) (blue (bg-color cc))
+          (chr cc)))
 
-(defun ansi-set-position (point)
-  (format nil "~C[~A;~AH" #\Esc (1+ (point-y point)) (1+ (point-x point))))
-
-(defun ansi-shift-position (delta)
-  (concatenate 'string 
-               (if (zerop (point-x delta))
-                 ""
-                 (format nil "~C[~A~A"
-                         #\Esc (point-x delta) 
-                         (if (plusp (point-x delta)) #\C #\D)))
-               (if (zerop (point-y delta))
-                 ""
-                 (format nil "~C[~A~A"
-                         #\Esc (point-y delta) 
-                         (if (plusp (point-y delta)) #\B #\A)))))
-
+(defun cc-buffer-to-string (buffer)
+  )

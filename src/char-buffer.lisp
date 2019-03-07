@@ -1,4 +1,4 @@
-;;;; characters.lisp
+;;;; char-buffer.lisp
 
 (in-package #:traytr)
 
@@ -19,30 +19,28 @@
 (defmacro blue (color)
   `(svref ,color 2))
 
-(alexandria:define-constant +black-color+ (make-color 0 0 0) :test #'equal)
+;;; COLORED CHARACTERS
 
-;;; CHARACTERS
-
-;; colored character
 (defun make-cc (char fg bg)
   (vector char fg bg))
 
-(defmacro cc-char (colchar)
+(defmacro chr (colchar)
   `(svref ,colchar 0))
 
-(defmacro cc-fg-color (colchar)
+(defmacro fg-color (colchar)
   `(svref ,colchar 1))
 
-(defmacro cc-bg-color (colchar)
+(defmacro bg-color (colchar)
   `(svref ,colchar 2))
 
-(alexandria:define-constant +empty-cc+ (make-cc #\Space +black-color+ +black-color+)
-                            :test #'equal)
+;;; USED COLORED CHARACTER TYPES
 
 (alexandria:define-constant +shade-blocks+ " ░▒▓█" :test #'equal)
+
 (alexandria:define-constant +down-blocks+ " ▁▂▃▄▅▆▇█" :test #'equal)
 (alexandria:define-constant +left-blocks+ " ▏▎▍▌▋▊▉█" :test #'equal)
 (alexandria:define-constant +quadrant-blocks+ "▝▗▖▘" :test #'equal)
+(alexandria:define-constant +quadrant-block-pairs+ "▞▚" :test #'equal)
 
 (defmacro shade-block-cc (n fg bg)
   `(make-cc (aref ,+shade-blocks+ ,n) ,fg ,bg))
@@ -64,4 +62,30 @@
 
 (defmacro inv-quadrant-block-cc (n fg bg)
   `(quadrant-block-cc ,n ,bg ,fg))
+
+(defmacro quadrant-block-pair-cc (n fg bg)
+  `(make-cc (aref ,+quadrant-block-pairs+ ,(1- n)) ,fg ,bg))
+
+;;; COORDINATES
+
+(defun point (x y)
+  (cons x y))
+
+(defmacro point-x (point)
+  `(car ,point))
+
+(defmacro point-y (point)
+  `(cdr ,point))
+
+;;; COLORED CHARACTER BUFFERS
+
+(let ((empty-cc (make-cc #\Space (make-color 0 0 0) (make-color 0 0 0))))
+  (defun make-cc-buffer (size)
+    (make-array `(,(point-x size) ,(point-y size)) :element-type 'vector :initial-element empty-cc)))
+
+(defun cc-buffer-element (buffer point)
+  (aref buffer (point-x point) (point-y point)))
+
+(defun (setf cc-buffer-element) (new-value buffer point)
+  (setf (aref buffer (point-x point) (point-y point)) new-value))
 

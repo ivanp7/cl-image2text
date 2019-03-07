@@ -6,10 +6,9 @@
   :license  "GPLv2"
   :version "0.0.1"
   :serial t
-  :depends-on (#:usocket #:bordeaux-threads #:alexandria)
+  :depends-on (#:usocket #:usocket-server #:bordeaux-threads #:alexandria)
   :components ((:file "src/package")
-               (:file "src/output")
-               (:file "src/characters")
-               (:file "src/text-buffer")
+               (:file "src/io-server")
+               (:file "src/char-buffer")
                (:file "src/ansi")))
 
