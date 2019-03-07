@@ -9,6 +9,6 @@
   :depends-on (#:usocket #:usocket-server #:bordeaux-threads #:alexandria)
   :components ((:file "src/package")
                (:file "src/io-server")
-               (:file "src/char-buffer")
+               (:file "src/terminal-buffer-pair")
                (:file "src/ansi")))
 

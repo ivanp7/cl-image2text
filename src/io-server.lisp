@@ -6,25 +6,35 @@
 
 (defvar *io-server* nil)
 (defvar *io-server-thread* nil)
+(defvar *io-server-stop-flag* t)
 
-(defvar *io-server-function* 
-  #'(lambda (stream)
-      (declare (type stream stream))
-      (write-string (read-line stream) stream)
-      (force-output stream)))
+(defmacro define-io-server-function (name &body body)
+  `(defun ,name (stream)
+     (declare (type stream stream))
+     ,@body))
+
+(define-io-server-function echo-server
+  (write-string (read-line stream) stream)
+  (force-output stream))
+
+(defvar *io-server-function* #'echo-server)
 
 (defun start-io-server (&optional (port *port*) (host usocket:*wildcard-host*))
   (unless *io-server*
-    (multiple-value-bind (thread socket)
-      (usocket:socket-server host port *io-server-function* () :in-new-thread t :reuse-address t :multi-threading t)
+    (multiple-value-bind (thread socket) (usocket:socket-server host port *io-server-function* () 
+                                                                :in-new-thread t 
+                                                                :reuse-address t 
+                                                                :multi-threading t)
       (setf *io-server* socket
-            *io-server-thread* thread)
+            *io-server-thread* thread
+            *io-server-stop-flag* nil)
       t))) 
 
 (defun stop-io-server ()
   (when *io-server*
-    (usocket:socket-close *io-server*)
+    (setf *io-server-stop-flag* t)
     (bt:destroy-thread *io-server-thread*)
+    (usocket:socket-close *io-server*)
     (setf *io-server* nil
           *io-server-thread* nil)
     t))
