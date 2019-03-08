@@ -9,5 +9,5 @@
            :set-quadrant-block :set-inv-quadrant-block :set-quadrant-block-pair
            :set-inv-quadrant-block-pair
            :+initial-string+ :+final-string+ :define-io-server-function/with-ansi
-           :buffer-pair-element-to-string :write-buffer-pair))
+           :write-buffer-pair-element :write-buffer-pair))
 
