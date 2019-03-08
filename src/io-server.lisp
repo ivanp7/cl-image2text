@@ -4,21 +4,16 @@
 
 (defparameter *port* 50511)
 
-(defvar *io-server-stop-flag* t)
-
-(defmacro define-io-server-function (name &body body)
-  `(defun ,name (stream)
-     (declare (type stream stream))
-     ,@body))
-
-(define-io-server-function echo-server
-  (write-string (read-line stream) stream)
-  (force-output stream))
-
-(defvar *io-server-function* #'echo-server)
+(defvar *io-server-function* 
+  #'(lambda (stream)
+      (declare (type stream stream))
+      (write-string (read-line stream) stream)))
 
 (defvar *io-server* nil)
 (defvar *io-server-thread* nil)
+
+(defun server-running-p ()
+  (not (null *io-server*)))
 
 (defun start-io-server (&optional (port *port*) (host usocket:*wildcard-host*))
   (unless *io-server*
@@ -27,13 +22,11 @@
                                                                 :reuse-address t 
                                                                 :multi-threading t)
       (setf *io-server* socket
-            *io-server-thread* thread
-            *io-server-stop-flag* nil)
+            *io-server-thread* thread)
       t))) 
 
 (defun stop-io-server ()
   (when *io-server*
-    (setf *io-server-stop-flag* t)
     (bt:destroy-thread *io-server-thread*)
     (usocket:socket-close *io-server*)
     (setf *io-server* nil
