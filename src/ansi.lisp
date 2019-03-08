@@ -12,32 +12,32 @@
              (format nil "~C[?1049l~:*~C[2J~:*~C[?7h~:*~C[?25h" #\Esc)
              :test #'equal)
 
+(defmacro define-io-server-function/with-ansi (name &body body)
+  `(define-io-server-function ,name
+     (write-string +initial-string+ stream)
+     (force-output stream)
+     ,@body
+     (write-string +final-string+ stream)
+     (force-output stream)))
+
 (defun buffer-pair-element-to-string (char fg-red fg-green fg-blue bg-red bg-green bg-blue)
   (format nil "~C[38;2;~A;~A;~Am~C[48;2;~A;~A;~Am~A" 
           #\Esc fg-red fg-green fg-blue #\Esc bg-red bg-green bg-blue char))
 
-(defun buffer-pair-to-string (buffer-pair)
+(defun write-buffer-pair (buffer-pair stream)
+  (declare (type stream stream))
   (let ((size (array-dimensions (char-buffer buffer-pair)))
         (linefeed (format nil "~C[E" #\Esc))
-        (home (format nil "~C[H" #\Esc))
-        (result ""))
-    (loop :for y :below (second size) :do 
-          (setf result
-                (concatenate 
-                  'string
-                  result
-                  (let ((line (if (zerop y) home linefeed)))
-                    (loop :for x :below (first size) :do
-                          (setf line
-                                (concatenate
-                                  'string
-                                  line
-                                  (with-buffer-pair-element 
-                                    buffer-pair x y
-                                    (buffer-pair-element-to-string 
-                                      char 
-                                      fg-red fg-green fg-blue
-                                      bg-red bg-green bg-blue)))))
-                    line))))
-    result))
+        (home (format nil "~C[H" #\Esc)))
+    (dotimes (y (second size))
+      (write-string (if (zerop y) home linefeed) stream)
+      (dotimes (x (first size))
+        (write-string (with-buffer-pair-element buffer-pair x y
+                        (buffer-pair-element-to-string 
+                          char
+                          fg-red fg-green fg-blue
+                          bg-red bg-green bg-blue))
+                      stream)))
+    (force-output stream)
+    t))
 

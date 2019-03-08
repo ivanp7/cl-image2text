@@ -8,6 +8,6 @@
            :set-shade-block :set-down-block :set-up-block :set-left-block :set-right-block
            :set-quadrant-block :set-inv-quadrant-block :set-quadrant-block-pair
            :set-inv-quadrant-block-pair
-           :+initial-string+ :+final-string+ :buffer-pair-element-to-string
-           :buffer-pair-to-string))
+           :+initial-string+ :+final-string+ :define-io-server-function/with-ansi
+           :buffer-pair-element-to-string :write-buffer-pair))
 
