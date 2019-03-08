@@ -138,9 +138,7 @@
 (defmacro define-io-server-function (name &body body)
   `(defun ,name (stream)
      (declare (type stream stream))
-     (initialize-terminal stream)
-     ,@body
-     (finalize-terminal stream)))
+     ,@body))
 
 (let ((byte-to-string 
         (make-array 256 :element-type 'string
