@@ -6,7 +6,7 @@
   :license  "GPLv2"
   :version "0.0.1"
   :serial t
-  :depends-on (#:traytr)
+  :depends-on (#:traytr #:opticl)
   :components ((:file "t/package-test")
                (:file "t/server-test")))
 
