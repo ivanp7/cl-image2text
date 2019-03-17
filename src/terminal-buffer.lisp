@@ -41,17 +41,17 @@
        (let* ((,number-of-threads (the fixnum (1- (cl-cpus:get-number-of-processors))))
               (threads (make-array ,number-of-threads :element-type '(or null bt:thread)
                                    :initial-element nil))
-              (segment-size-y (floor tb-size-y ,number-of-threads)))
+              (segment-size-y (the rational (/ tb-size-y (1+ ,number-of-threads)))))
          (dotimes (thread-i ,number-of-threads)
            (declare (type fixnum thread-i))
            (let* ((tb-xmin 0) (tb-xmax tb-size-x)
-                  (tb-ymin (the fixnum (* thread-i segment-size-y))) 
-                  (tb-ymax (the fixnum (+ tb-ymin segment-size-y))))
+                  (tb-ymin (the fixnum (floor (* thread-i segment-size-y)))) 
+                  (tb-ymax (the fixnum (floor (* (1+ thread-i) segment-size-y)))))
              (setf (svref threads thread-i) (bt:make-thread #'(lambda () ,@body)))))
          (prog1
            (let* ((tb-xmin 0) (tb-xmax tb-size-x)
-                   (tb-ymin (the fixnum (* ,number-of-threads segment-size-y))) 
-                   (tb-ymax (min tb-size-y (the fixnum (+ tb-ymin segment-size-y)))))
+                  (tb-ymin (the fixnum (floor (* ,number-of-threads segment-size-y)))) 
+                  (tb-ymax tb-size-y))
              ,@body)
            (dotimes (thread-i ,number-of-threads)
              (declare (type fixnum thread-i))
@@ -62,10 +62,10 @@
 (defmacro iterate-cell-pixels (buffer px py &body body)
   (alexandria:once-only (buffer)
     (alexandria:with-gensyms (x0 y0 xdispl ydispl)
-      `(let ((,x0 (the fixnum (* ,px ,+horz-ppc+))) 
-             (,y0 (the fixnum (* ,py ,+vert-ppc+))))
-         (loop :for y :of-type fixnum :below ,+vert-ppc+ :do
-               (loop :for x :of-type fixnum :below ,+horz-ppc+ :do
+      `(let ((,x0 (the fixnum (* ,px +horz-ppc+))) 
+             (,y0 (the fixnum (* ,py +vert-ppc+))))
+         (loop :for y :of-type fixnum :below +vert-ppc+ :do
+               (loop :for x :of-type fixnum :below +horz-ppc+ :do
                      (let ((,xdispl (the fixnum (+ x ,x0))) (,ydispl (the fixnum (+ y ,y0))))
                        (symbol-macrolet ((red (color-buffer-element-color 
                                                 red ,buffer ,xdispl ,ydispl))
@@ -140,10 +140,11 @@
      (defconstant +horz-ppc+ ,horz-ppc) ; pixels per character, x axis
      (defconstant +vert-ppc+ ,vert-ppc) ; pixels per character, y axis
      (defconstant +ppc+ (* +horz-ppc+ +vert-ppc+))
-     (defconstant +render-characters+
-                  (make-array ,(length char-descriptions) :element-type 'function
-                              :initial-contents (list ,@(mapcar #'make-render-character-function
-                                                                char-descriptions))))))
+     (alexandria:define-constant +render-characters+
+       (make-array ,(length char-descriptions) :element-type 'function
+                   :initial-contents (list ,@(mapcar #'make-render-character-function
+                                                     char-descriptions)))
+       :test (constantly t))))
 
 ;;; PICTURE-TO-TEXT CONVERSION: RENDER CHARACTERS SET AND RESOLUTION
 
