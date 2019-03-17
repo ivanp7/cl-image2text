@@ -110,78 +110,67 @@
                      fg-red-mean fg-green-mean fg-blue-mean
                      bg-red-mean bg-green-mean bg-blue-mean))))))
 
-(defmacro define-render-characters (&rest descriptions)
-  `(defconstant +render-characters+
-                (make-array ,(length descriptions) :element-type 'function
-                            :initial-contents (list ,@(mapcar #'make-render-character-function
-                                                              descriptions)))))
+(defmacro define-terminal-cell-constants ((horz-ppc vert-ppc) &rest char-descriptions)
+  `(progn
+     (defconstant +horz-ppc+ ,horz-ppc) ; pixels per character, x axis
+     (defconstant +vert-ppc+ ,vert-ppc) ; pixels per character, y axis
+     (defconstant +ppc+ (* +horz-ppc+ +vert-ppc+))
+     (defconstant +render-characters+
+                  (make-array ,(length char-descriptions) :element-type 'function
+                              :initial-contents (list ,@(mapcar #'make-render-character-function
+                                                                char-descriptions))))))
 
 ;;; PICTURE-TO-TEXT CONVERSION: RENDER CHARACTERS SET AND RESOLUTION
 
 (defmacro set-terminal-cell-resolution (resolution)
   (ecase resolution
-    (:1x2 `(progn
-             (defconstant +horz-ppc+ 1) ; pixels per character, x axis
-             (defconstant +vert-ppc+ 2) ; pixels per character, y axis
-             (defconstant +ppc+ (* +horz-ppc+ +vert-ppc+))
+    (:1x2 `(define-terminal-cell-constants (1 2)
+             (#\Space nil) ; empty
 
-             (define-render-characters
-               (#\Space nil) ; empty
+             (#\▄ (>= y (- 2 1))) ; 1/2 down
+             ))
+    (:2x4 `(define-terminal-cell-constants (2 4)
+             (#\Space nil) ; empty
 
-               (#\▄ (>= y (- 2 1))) ; 1/2 down
-               )))
-    (:2x4 `(progn
-             (defconstant +horz-ppc+ 2) ; pixels per character, x axis
-             (defconstant +vert-ppc+ 4) ; pixels per character, y axis
-             (defconstant +ppc+ (* +horz-ppc+ +vert-ppc+))
+             (#\▝ (and (>= x 1) (< y 2))) ; 1st quadrant
+             (#\▗ (and (>= x 1) (>= y 2))) ; 2nd quadrant
+             (#\▖ (and (< x 1) (>= y 2))) ; 3rd quadrant
+             (#\▘ (and (< x 1) (< y 2))) ; 4th quadrant
 
-             (define-render-characters
-               (#\Space nil) ; empty
+             (#\▞ (or (and (< x 1) (>= y 2))
+                     (and (>= x 1) (< y 2)))) ; main diagonal
 
-               (#\▝ (and (>= x 1) (< y 2))) ; 1st quadrant
-               (#\▗ (and (>= x 1) (>= y 2))) ; 2nd quadrant
-               (#\▖ (and (< x 1) (>= y 2))) ; 3rd quadrant
-               (#\▘ (and (< x 1) (< y 2))) ; 4th quadrant
+             (#\▂ (>= y (- 4 1))) ; 1/4 down
+             (#\▄ (>= y (- 4 2))) ; 2/4 down
+             (#\▆ (>= y (- 4 3))) ; 3/4 down
 
-               (#\▞ (or (and (< x 1) (>= y 2))
-                       (and (>= x 1) (< y 2)))) ; main diagonal
+             (#\▌ (< x 1)) ; 1/2 left
+             ))
+    (:4x8 `(define-terminal-cell-constants (4 8)
+             (#\Space nil) ; empty
 
-               (#\▂ (>= y (- 4 1))) ; 1/4 down
-               (#\▄ (>= y (- 4 2))) ; 2/4 down
-               (#\▆ (>= y (- 4 3))) ; 3/4 down
+             (#\▝ (and (>= x 2) (< y 4))) ; 1st quadrant
+             (#\▗ (and (>= x 2) (>= y 4))) ; 2nd quadrant
+             (#\▖ (and (< x 2) (>= y 4))) ; 3rd quadrant
+             (#\▘ (and (< x 2) (< y 4))) ; 4th quadrant
 
-               (#\▌ (< x 1)) ; 1/2 left
-               )))
-    (:4x8 `(progn
-             (defconstant +horz-ppc+ 4) ; pixels per character, x axis
-             (defconstant +vert-ppc+ 8) ; pixels per character, y axis
-             (defconstant +ppc+ (* +horz-ppc+ +vert-ppc+))
+             (#\▞ (or (and (< x 2) (>= y 4))
+                     (and (>= x 2) (< y 4)))) ; main diagonal
 
-             (define-render-characters
-               (#\Space nil) ; empty
+             (#\▁ (>= y (- 8 1))) ; 1/8 down
+             (#\▂ (>= y (- 8 2))) ; 2/8 down
+             (#\▃ (>= y (- 8 3))) ; 3/8 down
+             (#\▄ (>= y (- 8 4))) ; 4/8 down
+             (#\▅ (>= y (- 8 5))) ; 5/8 down
+             (#\▆ (>= y (- 8 6))) ; 6/8 down
+             (#\▇ (>= y (- 8 7))) ; 7/8 down
 
-               (#\▝ (and (>= x 2) (< y 4))) ; 1st quadrant
-               (#\▗ (and (>= x 2) (>= y 4))) ; 2nd quadrant
-               (#\▖ (and (< x 2) (>= y 4))) ; 3rd quadrant
-               (#\▘ (and (< x 2) (< y 4))) ; 4th quadrant
+             (#\▎ (< x 1)) ; 1/4 left
+             (#\▌ (< x 2)) ; 2/4 left
+             (#\▊ (< x 3)) ; 3/4 left
+             ))))
 
-               (#\▞ (or (and (< x 2) (>= y 4))
-                       (and (>= x 2) (< y 4)))) ; main diagonal
-
-               (#\▁ (>= y (- 8 1))) ; 1/8 down
-               (#\▂ (>= y (- 8 2))) ; 2/8 down
-               (#\▃ (>= y (- 8 3))) ; 3/8 down
-               (#\▄ (>= y (- 8 4))) ; 4/8 down
-               (#\▅ (>= y (- 8 5))) ; 5/8 down
-               (#\▆ (>= y (- 8 6))) ; 6/8 down
-               (#\▇ (>= y (- 8 7))) ; 7/8 down
-
-               (#\▎ (< x 1)) ; 1/4 left
-               (#\▌ (< x 2)) ; 2/4 left
-               (#\▊ (< x 3)) ; 3/4 left
-               )))))
-
-(set-terminal-cell-resolution :2x4)
+(set-terminal-cell-resolution :2x4) ; 2x4 is much faster than 4x8 but just slightly worse
 
 ;;; PICTURE-TO-TEXT CONVERSION: ALGORITHM
 
