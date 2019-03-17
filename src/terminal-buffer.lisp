@@ -59,7 +59,7 @@
 
 ;;; PICTURE-TO-TEXT CONVERSION: RENDER CHARACTERS
 
-(defmacro iterate-character-pixels (buffer px py &body body)
+(defmacro iterate-cell-pixels (buffer px py &body body)
   (alexandria:once-only (buffer)
     (alexandria:with-gensyms (x0 y0 xdispl ydispl)
       `(let ((,x0 (the fixnum (* ,px ,+horz-ppc+))) 
@@ -88,7 +88,7 @@
              (declare (type fixnum score fg-pixels
                             fg-red-mean fg-green-mean fg-blue-mean
                             bg-red-mean bg-green-mean bg-blue-mean))
-             (iterate-character-pixels buffer px py
+             (iterate-cell-pixels buffer px py
                (if ,char-fg-p
                  (progn
                    (setf fg-pixels
@@ -118,7 +118,7 @@
                                    (round bg-green-mean (- +ppc+ fg-pixels)))
                    bg-blue-mean (if (zerop (- +ppc+ fg-pixels)) 0 
                                   (round bg-blue-mean (- +ppc+ fg-pixels))))
-             (iterate-character-pixels buffer px py
+             (iterate-cell-pixels buffer px py
                (let* ((delta-red (the fixnum 
                                       (- red (if ,char-fg-p fg-red-mean bg-red-mean))))
                       (delta-red-sq (the fixnum (* delta-red delta-red)))
