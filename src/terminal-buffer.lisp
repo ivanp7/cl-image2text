@@ -35,10 +35,6 @@
 
 ;;; PICTURE-TO-TEXT CONVERSION: RENDER CHARACTERS
 
-(defconstant +horz-ppc+ 4) ; pixels per character, x axis
-(defconstant +vert-ppc+ 8) ; pixels per character, y axis
-(defconstant +ppc+ (* +horz-ppc+ +vert-ppc+))
-
 (defmacro iterate-character-pixels (buffer px py &body body)
   (alexandria:once-only (buffer)
     (alexandria:with-gensyms (x0 y0 xdispl ydispl)
@@ -54,98 +50,138 @@
                                                  blue ,buffer ,xdispl ,ydispl)))
                          ,@body))))))))
 
-(defun make-render-character-function (description)
-  (let ((character (first description)) (char-fg-p (second description)))
-    `#'(lambda (buffer px py)
-         (declare (optimize (speed 3) (safety 0))
-                  (type (simple-array fixnum (* * 3)) buffer)
-                  (type fixnum px py))
-         (let ((score 0) (fg-pixels 0)
-               (fg-red-mean 0) (fg-green-mean 0) (fg-blue-mean 0) 
-               (bg-red-mean 0) (bg-green-mean 0) (bg-blue-mean 0))
-           (declare (type fixnum score fg-pixels
-                          fg-red-mean fg-green-mean fg-blue-mean
-                          bg-red-mean bg-green-mean bg-blue-mean))
-           (iterate-character-pixels buffer px py
-             (if ,char-fg-p
-               (progn
-                 (setf fg-pixels
-                       (the fixnum (1+ fg-pixels)))
-                 (setf fg-red-mean
-                       (the fixnum (+ fg-red-mean red)))
-                 (setf fg-green-mean
-                       (the fixnum (+ fg-green-mean green)))
-                 (setf fg-blue-mean
-                       (the fixnum (+ fg-blue-mean blue))))
-               (progn
-                 (setf bg-red-mean
-                       (the fixnum (+ bg-red-mean red)))
-                 (setf bg-green-mean
-                       (the fixnum (+ bg-green-mean green)))
-                 (setf bg-blue-mean
-                       (the fixnum (+ bg-blue-mean blue))))))
-           (setf fg-red-mean (if (zerop fg-pixels) 0 
-                               (round fg-red-mean fg-pixels))
-                 fg-green-mean (if (zerop fg-pixels) 0 
-                                 (round fg-green-mean fg-pixels))
-                 fg-blue-mean (if (zerop fg-pixels) 0 
-                                (round fg-blue-mean fg-pixels))
-                 bg-red-mean (if (zerop (- +ppc+ fg-pixels)) 0 
-                               (round bg-red-mean (- +ppc+ fg-pixels)))
-                 bg-green-mean (if (zerop (- +ppc+ fg-pixels)) 0 
-                                 (round bg-green-mean (- +ppc+ fg-pixels)))
-                 bg-blue-mean (if (zerop (- +ppc+ fg-pixels)) 0 
-                                (round bg-blue-mean (- +ppc+ fg-pixels))))
-           (iterate-character-pixels buffer px py
-             (let ((delta-red (the fixnum 
-                                   (- red (if ,char-fg-p fg-red-mean bg-red-mean))))
-                   (delta-green (the fixnum 
-                                     (- green (if ,char-fg-p fg-green-mean bg-green-mean))))
-                   (delta-blue (the fixnum 
-                                    (- blue (if ,char-fg-p fg-blue-mean bg-blue-mean)))))
-               (setf score
-                     (the fixnum
-                          (+ score
-                             (the fixnum (* delta-red delta-red))
-                             (the fixnum (* delta-green delta-green))
-                             (the fixnum (* delta-blue delta-blue)))))))
-           (values score ,character
-                   fg-red-mean fg-green-mean fg-blue-mean
-                   bg-red-mean bg-green-mean bg-blue-mean)))))
-
-(defvar *render-characters*)
+(eval-when (:compile-toplevel :load-toplevel :execute) 
+  (defun make-render-character-function (description)
+    (let ((character (first description)) (char-fg-p (second description)))
+      `#'(lambda (buffer px py)
+           (declare (optimize (speed 3) (safety 0))
+                    (type (simple-array fixnum (* * 3)) buffer)
+                    (type fixnum px py))
+           (let ((score 0) (fg-pixels 0)
+                 (fg-red-mean 0) (fg-green-mean 0) (fg-blue-mean 0) 
+                 (bg-red-mean 0) (bg-green-mean 0) (bg-blue-mean 0))
+             (declare (type fixnum score fg-pixels
+                            fg-red-mean fg-green-mean fg-blue-mean
+                            bg-red-mean bg-green-mean bg-blue-mean))
+             (iterate-character-pixels buffer px py
+               (if ,char-fg-p
+                 (progn
+                   (setf fg-pixels
+                         (the fixnum (1+ fg-pixels)))
+                   (setf fg-red-mean
+                         (the fixnum (+ fg-red-mean red)))
+                   (setf fg-green-mean
+                         (the fixnum (+ fg-green-mean green)))
+                   (setf fg-blue-mean
+                         (the fixnum (+ fg-blue-mean blue))))
+                 (progn
+                   (setf bg-red-mean
+                         (the fixnum (+ bg-red-mean red)))
+                   (setf bg-green-mean
+                         (the fixnum (+ bg-green-mean green)))
+                   (setf bg-blue-mean
+                         (the fixnum (+ bg-blue-mean blue))))))
+             (setf fg-red-mean (if (zerop fg-pixels) 0 
+                                 (round fg-red-mean fg-pixels))
+                   fg-green-mean (if (zerop fg-pixels) 0 
+                                   (round fg-green-mean fg-pixels))
+                   fg-blue-mean (if (zerop fg-pixels) 0 
+                                  (round fg-blue-mean fg-pixels))
+                   bg-red-mean (if (zerop (- +ppc+ fg-pixels)) 0 
+                                 (round bg-red-mean (- +ppc+ fg-pixels)))
+                   bg-green-mean (if (zerop (- +ppc+ fg-pixels)) 0 
+                                   (round bg-green-mean (- +ppc+ fg-pixels)))
+                   bg-blue-mean (if (zerop (- +ppc+ fg-pixels)) 0 
+                                  (round bg-blue-mean (- +ppc+ fg-pixels))))
+             (iterate-character-pixels buffer px py
+               (let* ((delta-red (the fixnum 
+                                      (- red (if ,char-fg-p fg-red-mean bg-red-mean))))
+                      (delta-red-sq (the fixnum (* delta-red delta-red)))
+                      (delta-green (the fixnum 
+                                        (- green (if ,char-fg-p fg-green-mean bg-green-mean))))
+                      (delta-green-sq (the fixnum (* delta-green delta-green)))
+                      (delta-blue (the fixnum 
+                                       (- blue (if ,char-fg-p fg-blue-mean bg-blue-mean))))
+                      (delta-blue-sq (the fixnum (* delta-blue delta-blue)))
+                      (delta (the fixnum
+                                  (+ delta-red-sq delta-green-sq delta-blue-sq))))
+                 (setf score (the fixnum (+ score delta)))))
+             (values score ,character
+                     fg-red-mean fg-green-mean fg-blue-mean
+                     bg-red-mean bg-green-mean bg-blue-mean))))))
 
 (defmacro define-render-characters (&rest descriptions)
-  `(setf *render-characters*
-         (make-array ,(length descriptions) :element-type 'function
-                     :initial-contents (list ,@(mapcar #'make-render-character-function
-                                                       descriptions)))))
+  `(defconstant +render-characters+
+                (make-array ,(length descriptions) :element-type 'function
+                            :initial-contents (list ,@(mapcar #'make-render-character-function
+                                                              descriptions)))))
 
-;;; PICTURE-TO-TEXT CONVERSION: USED RENDER CHARACTERS
+;;; PICTURE-TO-TEXT CONVERSION: RENDER CHARACTERS SET AND RESOLUTION
 
-(define-render-characters
-  (#\Space nil) ; empty
+(defmacro set-terminal-cell-resolution (resolution)
+  (ecase resolution
+    (:1x2 `(progn
+             (defconstant +horz-ppc+ 1) ; pixels per character, x axis
+             (defconstant +vert-ppc+ 2) ; pixels per character, y axis
+             (defconstant +ppc+ (* +horz-ppc+ +vert-ppc+))
 
-  (#\▝ (and (>= x 2) (< y 4))) ; 1st quadrant
-  (#\▗ (and (>= x 2) (>= y 4))) ; 2nd quadrant
-  (#\▖ (and (< x 2) (>= y 4))) ; 3rd quadrant
-  (#\▘ (and (< x 2) (< y 4))) ; 4th quadrant
+             (define-render-characters
+               (#\Space nil) ; empty
 
-  (#\▞ (or (and (< x 2) (>= y 4))
-          (and (>= x 2) (< y 4)))) ; main diagonal
+               (#\▄ (>= y (- 2 1))) ; 1/2 down
+               )))
+    (:2x4 `(progn
+             (defconstant +horz-ppc+ 2) ; pixels per character, x axis
+             (defconstant +vert-ppc+ 4) ; pixels per character, y axis
+             (defconstant +ppc+ (* +horz-ppc+ +vert-ppc+))
 
-  (#\▁ (>= y (- 8 1))) ; 1/8 down
-  (#\▂ (>= y (- 8 2))) ; 2/8 down
-  (#\▃ (>= y (- 8 3))) ; 3/8 down
-  (#\▄ (>= y (- 8 4))) ; 4/8 down
-  (#\▅ (>= y (- 8 5))) ; 5/8 down
-  (#\▆ (>= y (- 8 6))) ; 6/8 down
-  (#\▇ (>= y (- 8 7))) ; 7/8 down
+             (define-render-characters
+               (#\Space nil) ; empty
 
-  (#\▎ (< x 1)) ; 1/4 left
-  (#\▌ (< x 2)) ; 2/4 left
-  (#\▊ (< x 3)) ; 3/4 left
-  )
+               (#\▝ (and (>= x 1) (< y 2))) ; 1st quadrant
+               (#\▗ (and (>= x 1) (>= y 2))) ; 2nd quadrant
+               (#\▖ (and (< x 1) (>= y 2))) ; 3rd quadrant
+               (#\▘ (and (< x 1) (< y 2))) ; 4th quadrant
+
+               (#\▞ (or (and (< x 1) (>= y 2))
+                       (and (>= x 1) (< y 2)))) ; main diagonal
+
+               (#\▂ (>= y (- 4 1))) ; 1/4 down
+               (#\▄ (>= y (- 4 2))) ; 2/4 down
+               (#\▆ (>= y (- 4 3))) ; 3/4 down
+
+               (#\▌ (< x 1)) ; 1/2 left
+               )))
+    (:4x8 `(progn
+             (defconstant +horz-ppc+ 4) ; pixels per character, x axis
+             (defconstant +vert-ppc+ 8) ; pixels per character, y axis
+             (defconstant +ppc+ (* +horz-ppc+ +vert-ppc+))
+
+             (define-render-characters
+               (#\Space nil) ; empty
+
+               (#\▝ (and (>= x 2) (< y 4))) ; 1st quadrant
+               (#\▗ (and (>= x 2) (>= y 4))) ; 2nd quadrant
+               (#\▖ (and (< x 2) (>= y 4))) ; 3rd quadrant
+               (#\▘ (and (< x 2) (< y 4))) ; 4th quadrant
+
+               (#\▞ (or (and (< x 2) (>= y 4))
+                       (and (>= x 2) (< y 4)))) ; main diagonal
+
+               (#\▁ (>= y (- 8 1))) ; 1/8 down
+               (#\▂ (>= y (- 8 2))) ; 2/8 down
+               (#\▃ (>= y (- 8 3))) ; 3/8 down
+               (#\▄ (>= y (- 8 4))) ; 4/8 down
+               (#\▅ (>= y (- 8 5))) ; 5/8 down
+               (#\▆ (>= y (- 8 6))) ; 6/8 down
+               (#\▇ (>= y (- 8 7))) ; 7/8 down
+
+               (#\▎ (< x 1)) ; 1/4 left
+               (#\▌ (< x 2)) ; 2/4 left
+               (#\▊ (< x 3)) ; 3/4 left
+               )))))
+
+(set-terminal-cell-resolution :2x4)
 
 ;;; PICTURE-TO-TEXT CONVERSION: ALGORITHM
 
@@ -159,7 +195,7 @@
     (declare (type fixnum min-score best-fg-red best-fg-green best-fg-blue 
                    best-bg-red best-bg-green best-bg-blue))
     (loop :for chdscr :of-type function 
-          :across (the (simple-array function (*)) *render-characters*)
+          :across (the (simple-array function (*)) +render-characters+)
           :do
           (multiple-value-bind (score char fg-red fg-green fg-blue bg-red bg-green bg-blue)
               (funcall chdscr pixel-buffer px py)
