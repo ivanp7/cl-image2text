@@ -10,15 +10,15 @@
          (x (intern (concatenate 'string prefixstr "-SIZE-X")))
          (y (intern (concatenate 'string prefixstr "-SIZE-Y")))) 
     (alexandria:once-only (buffer)
-      `(let ((,x (array-dimension ,buffer 1))
-             (,y (array-dimension ,buffer 0)))
+      `(let ((,x (the fixnum (array-dimension ,buffer 1)))
+             (,y (the fixnum (array-dimension ,buffer 0))))
          ,@body))))
 
 (defmacro color-buffer-element-color (color buffer x y)
   (ecase color
-    (red `(aref ,buffer ,y ,x 0))
-    (green `(aref ,buffer ,y ,x 1))
-    (blue `(aref ,buffer ,y ,x 2))))
+    (red `(the fixnum (aref ,buffer ,y ,x 0)))
+    (green `(the fixnum (aref ,buffer ,y ,x 1)))
+    (blue `(the fixnum (aref ,buffer ,y ,x 2)))))
 
 (defmacro with-color-buffer-element-colors (var-prefix buffer x y &body body)
   (let* ((prefixstr (symbol-name var-prefix)) 

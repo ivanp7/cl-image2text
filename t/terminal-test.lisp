@@ -52,10 +52,10 @@
               (setf px-red 0
                     px-green 0
                     px-blue 0)))))
-      (convert-pixel-to-terminal-buffer pixel-buffer terminal-buffer)
-      (write-terminal-buffer terminal-buffer stream)
-      (read-char stream)
-      (finalize-terminal stream)))
+      (convert-image-to-text pixel-buffer terminal-buffer)
+      (write-terminal-buffer terminal-buffer stream))
+    (read-char stream)
+    (finalize-terminal stream))
 
   (setf *io-server-function* #'io-server-function/converter-test))
 
@@ -75,9 +75,10 @@
                   (setf px-red r
                         px-green g
                         px-blue b)))))
-          (convert-pixel-to-terminal-buffer pixel-buffer terminal-buffer)
-          (write-terminal-buffer terminal-buffer stream)
-          (read-char stream)
-          (finalize-terminal stream)))))
+          (convert-image-to-text pixel-buffer terminal-buffer)
+          (write-terminal-buffer terminal-buffer stream))))
+    (read-char stream)
+    (finalize-terminal stream))
 
   (setf *io-server-function* #'io-server-function/converter-test2))
+

@@ -8,5 +8,5 @@
   :serial t
   :depends-on (#:traytr #:opticl)
   :components ((:file "t/package-test")
-               (:file "t/server-test")))
+               (:file "t/terminal-test")))
 
