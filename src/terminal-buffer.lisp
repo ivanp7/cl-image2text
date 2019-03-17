@@ -33,12 +33,37 @@
              (symbol-macrolet ((char (the character (aref ,char-buf ,y ,x))))
                ,@body)))))))
 
+;;; PARALLEL PROCESSING OF A TERMINAL BUFFER
+
+(defmacro with-parallel-terminal-buffer-processing (buffer &body body)
+  (alexandria:with-gensyms (number-of-threads)
+    `(with-terminal-buffer-size ,buffer
+       (let* ((,number-of-threads (the fixnum (1- (cl-cpus:get-number-of-processors))))
+              (threads (make-array ,number-of-threads :element-type '(or null bt:thread)
+                                   :initial-element nil))
+              (segment-size-y (floor tb-size-y ,number-of-threads)))
+         (dotimes (thread-i ,number-of-threads)
+           (declare (type fixnum thread-i))
+           (let* ((tb-xmin 0) (tb-xmax tb-size-x)
+                  (tb-ymin (the fixnum (* thread-i segment-size-y))) 
+                  (tb-ymax (the fixnum (+ tb-ymin segment-size-y))))
+             (setf (svref threads thread-i) (bt:make-thread #'(lambda () ,@body)))))
+         (prog1
+           (let* ((tb-xmin 0) (tb-xmax tb-size-x)
+                   (tb-ymin (the fixnum (* ,number-of-threads segment-size-y))) 
+                   (tb-ymax (min tb-size-y (the fixnum (+ tb-ymin segment-size-y)))))
+             ,@body)
+           (dotimes (thread-i ,number-of-threads)
+             (declare (type fixnum thread-i))
+             (bt:join-thread (svref threads thread-i))))))))
+
 ;;; PICTURE-TO-TEXT CONVERSION: RENDER CHARACTERS
 
 (defmacro iterate-character-pixels (buffer px py &body body)
   (alexandria:once-only (buffer)
     (alexandria:with-gensyms (x0 y0 xdispl ydispl)
-      `(let ((,x0 (the fixnum (* ,px ,+horz-ppc+))) (,y0 (the fixnum (* ,py ,+vert-ppc+))))
+      `(let ((,x0 (the fixnum (* ,px ,+horz-ppc+))) 
+             (,y0 (the fixnum (* ,py ,+vert-ppc+))))
          (loop :for y :of-type fixnum :below ,+vert-ppc+ :do
                (loop :for x :of-type fixnum :below ,+horz-ppc+ :do
                      (let ((,xdispl (the fixnum (+ x ,x0))) (,ydispl (the fixnum (+ y ,y0))))
@@ -203,30 +228,29 @@
             best-fg-red best-fg-green best-fg-blue 
             best-bg-red best-bg-green best-bg-blue)))
 
-(defun convert-image-to-text (pixel-buffer terminal-buffer)
+(defun convert-image-to-text (pixel-buffer terminal-buffer &optional ymin ymax xmin xmax)
   (declare (optimize (speed 3) (safety 0))
            (type (simple-array fixnum (* * 3)) pixel-buffer)
-           (type terminal-buffer terminal-buffer))
+           (type terminal-buffer terminal-buffer)
+           (type (or fixnum null) ymin ymax xmin xmax))
   (with-terminal-buffer-size terminal-buffer
-    (dotimes (px tb-size-x)
-      (declare (type fixnum px))
-      (dotimes (py tb-size-y)
-        (declare (type fixnum py))
-        (multiple-value-bind (char-value 
-                              fg-red-value fg-green-value fg-blue-value 
-                              bg-red-value bg-green-value bg-blue-value)
-            (convert-pixels-to-character pixel-buffer px py)
-          (declare (type character char-value)
-                   (type fixnum fg-red-value fg-green-value fg-blue-value 
-                         bg-red-value bg-green-value bg-blue-value))
-          (with-terminal-buffer-element terminal-buffer px py
-            (setf char char-value
-                  fg-red fg-red-value
-                  fg-green fg-green-value
-                  fg-blue fg-blue-value
-                  bg-red bg-red-value
-                  bg-green bg-green-value
-                  bg-blue bg-blue-value)))))))
+    (loop :for py :of-type fixnum :from (or ymin 0) :below (or ymax tb-size-y) :do
+          (loop :for px :of-type fixnum :from (or xmin 0) :below (or xmax tb-size-x) :do
+                (multiple-value-bind (char-value 
+                                      fg-red-value fg-green-value fg-blue-value 
+                                      bg-red-value bg-green-value bg-blue-value)
+                    (convert-pixels-to-character pixel-buffer px py)
+                  (declare (type character char-value)
+                           (type fixnum fg-red-value fg-green-value fg-blue-value 
+                                 bg-red-value bg-green-value bg-blue-value))
+                  (with-terminal-buffer-element terminal-buffer px py
+                    (setf char char-value
+                          fg-red fg-red-value
+                          fg-green fg-green-value
+                          fg-blue fg-blue-value
+                          bg-red bg-red-value
+                          bg-green bg-green-value
+                          bg-blue bg-blue-value)))))))
 
 ;;; TERMINAL BUFFER OUTPUT
 

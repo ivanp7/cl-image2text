@@ -52,7 +52,8 @@
               (setf px-red 0
                     px-green 0
                     px-blue 0)))))
-      (convert-image-to-text pixel-buffer terminal-buffer)
+      (with-parallel-terminal-buffer-processing terminal-buffer
+        (convert-image-to-text pixel-buffer terminal-buffer tb-ymin tb-ymax tb-xmin tb-xmax))
       (write-terminal-buffer terminal-buffer stream))
     (read-char stream)
     (finalize-terminal stream))
@@ -75,7 +76,8 @@
                   (setf px-red r
                         px-green g
                         px-blue b)))))
-          (convert-image-to-text pixel-buffer terminal-buffer)
+          (with-parallel-terminal-buffer-processing terminal-buffer
+            (convert-image-to-text pixel-buffer terminal-buffer tb-ymin tb-ymax tb-xmin tb-xmax))
           (write-terminal-buffer terminal-buffer stream))))
     (read-char stream)
     (finalize-terminal stream))
