@@ -256,17 +256,23 @@
 ;;; TERMINAL BUFFER OUTPUT
 
 ;; switch to alt. buffer, clear screen, disable line wrap and hide cursor
-(let ((init-string (format nil "~C[?1049h~:*~C[2J~:*~C[?7l~:*~C[?25l" #\Esc))) 
+(let ((init-string (format nil "~C[?1049h~:*~C[2J~:*~C[?7l~:*~C[?25l" #\Esc))
+      (home (format nil "~C[H" #\Esc))) 
   (defun initialize-terminal (stream)
     (declare (type stream stream))
     (write-string init-string stream)
+    (write-string home stream)
+    (force-output stream)
     t))
 
 ;; switch to primary buffer, clear screen, enable line wrap and show cursor
-(let ((final-string (format nil "~C[?1049l~:*~C[2J~:*~C[?7h~:*~C[?25h" #\Esc))) 
+(let ((final-string (format nil "~C[?1049l~:*~C[2J~:*~C[?7h~:*~C[?25h" #\Esc))
+      (home (format nil "~C[H" #\Esc))) 
   (defun finalize-terminal (stream)
     (declare (type stream stream))
     (write-string final-string stream)
+    (write-string home stream)
+    (force-output stream)
     t))
 
 (defmacro define-io-server-function (name &body body)

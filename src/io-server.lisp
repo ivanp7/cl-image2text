@@ -7,7 +7,14 @@
 (defvar *io-server-function* 
   #'(lambda (stream)
       (declare (type stream stream))
-      (write-string (read-line stream) stream)))
+      (let ((eof-value (gensym)) str)
+        (loop
+          (setf str (read-line stream nil eof-value))
+          (if (or (eq str eof-value) (equal str "~"))
+            (return)
+            (progn
+              (write-string str stream)
+              (force-output stream)))))))
 
 (defvar *io-server* nil)
 (defvar *io-server-thread* nil)
