@@ -31,3 +31,21 @@
                          (,blue (color-buffer-element-color blue ,buffer ,x ,y)))
          ,@body))))
 
+(defmacro modify-places (operation result-type (&rest places) (&rest arglists) &environment env)
+  (if (/= (length places) (length arglists))
+    (error "Number of arglists must correspond to the number of places")
+    (flet ((generate-setf (setf-exp arglist)
+             (unless (listp arglist)
+               (setf arglist (list arglist)))
+             (let ((vars (first setf-exp)) (forms (second setf-exp)) (var (car (third setf-exp)))
+                   (set (fourth setf-exp)) (access (fifth setf-exp)))
+               `(let (,@(mapcar #'list vars forms))
+                  (let ((,var (the ,result-type (,operation ,access ,@arglist))))
+                    ,set)))))
+      `(progn ,@(mapcar #'generate-setf 
+                        (mapcar #'(lambda (place)
+                                    (multiple-value-list 
+                                      (get-setf-expansion place env)))
+                                places)
+                        arglists)))))
+

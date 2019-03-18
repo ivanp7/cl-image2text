@@ -91,33 +91,21 @@
              (iterate-cell-pixels buffer px py
                (if ,char-fg-p
                  (progn
-                   (setf fg-pixels
-                         (the fixnum (1+ fg-pixels)))
-                   (setf fg-red-mean
-                         (the fixnum (+ fg-red-mean red)))
-                   (setf fg-green-mean
-                         (the fixnum (+ fg-green-mean green)))
-                   (setf fg-blue-mean
-                         (the fixnum (+ fg-blue-mean blue))))
-                 (progn
-                   (setf bg-red-mean
-                         (the fixnum (+ bg-red-mean red)))
-                   (setf bg-green-mean
-                         (the fixnum (+ bg-green-mean green)))
-                   (setf bg-blue-mean
-                         (the fixnum (+ bg-blue-mean blue))))))
-             (setf fg-red-mean (if (zerop fg-pixels) 0 
-                                 (round fg-red-mean fg-pixels))
-                   fg-green-mean (if (zerop fg-pixels) 0 
-                                   (round fg-green-mean fg-pixels))
-                   fg-blue-mean (if (zerop fg-pixels) 0 
-                                  (round fg-blue-mean fg-pixels))
-                   bg-red-mean (if (zerop (- +ppc+ fg-pixels)) 0 
-                                 (round bg-red-mean (- +ppc+ fg-pixels)))
-                   bg-green-mean (if (zerop (- +ppc+ fg-pixels)) 0 
-                                   (round bg-green-mean (- +ppc+ fg-pixels)))
-                   bg-blue-mean (if (zerop (- +ppc+ fg-pixels)) 0 
-                                  (round bg-blue-mean (- +ppc+ fg-pixels))))
+                   (setf fg-pixels (the fixnum (1+ fg-pixels)))
+                   (modify-places + fixnum (fg-red-mean fg-green-mean fg-blue-mean)
+                                  (red green blue)))
+                 (modify-places + fixnum (bg-red-mean bg-green-mean bg-blue-mean)
+                                  (red green blue))))
+             (if (zerop fg-pixels)
+               (modify-places * fixnum (fg-red-mean fg-green-mean fg-blue-mean)
+                              (0 0 0))
+               (modify-places round fixnum (fg-red-mean fg-green-mean fg-blue-mean)
+                              (fg-pixels fg-pixels fg-pixels)))
+             (if (= fg-pixels +ppc+)
+               (modify-places * fixnum (bg-red-mean bg-green-mean bg-blue-mean)
+                              (0 0 0))
+               (modify-places round fixnum (bg-red-mean bg-green-mean bg-blue-mean)
+                              (((- +ppc+ fg-pixels)) ((- +ppc+ fg-pixels)) ((- +ppc+ fg-pixels)))))
              (iterate-cell-pixels buffer px py
                (let* ((delta-red (the fixnum 
                                       (- red (if ,char-fg-p fg-red-mean bg-red-mean))))
