@@ -31,7 +31,7 @@
                          (,blue (color-buffer-element-color blue ,buffer ,x ,y)))
          ,@body))))
 
-(defmacro modify-places (operation result-type (&rest places) (&rest arglists) &environment env)
+(defmacro modify-places (result-type operation (&rest places) (&rest arglists) &environment env)
   (if (/= (length places) (length arglists))
     (error "Number of arglists must correspond to the number of places")
     (flet ((generate-setf (setf-exp arglist)
