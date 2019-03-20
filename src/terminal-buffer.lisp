@@ -276,16 +276,15 @@
   (declare (optimize (speed 3) (safety 0))
            (type (simple-array fixnum (* * 3)) pixel-buffer)
            (type fixnum px py))
-  (bind-cell-colors pixel-buffer px py
-    ;; Numeration of cell pixels:
-    ;; 0 1
-    ;; 2 3
-    ;; 4 5
-    ;; 6 7
-    (choose-best-character-and-colors
-      ((#\Space ()) (#\▝ (1 3)) (#\▗ (5 7)) (#\▖ (4 6)) (#\▘ (0 2)) (#\▞ (1 3 4 6)) 
-                    (#\▂ (6 7)) (#\▄ (4 5 6 7)) (#\▆ (2 3 4 5 6 7)) (#\▌ (0 2 4 6)))
-      pixel-buffer px py)))
+  ;; Numeration of cell pixels:
+  ;; 0 1
+  ;; 2 3
+  ;; 4 5
+  ;; 6 7
+  (choose-best-character-and-colors
+    ((#\Space ()) (#\▝ (1 3)) (#\▗ (5 7)) (#\▖ (4 6)) (#\▘ (0 2)) (#\▞ (1 3 4 6)) 
+                  (#\▂ (6 7)) (#\▄ (4 5 6 7)) (#\▆ (2 3 4 5 6 7)) (#\▌ (0 2 4 6)))
+    pixel-buffer px py))
 
 (defun convert-image-to-text (pixel-buffer terminal-buffer &optional ymin ymax xmin xmax)
   (declare (optimize (speed 3) (safety 0))
@@ -357,56 +356,51 @@
     (force-output stream)
     t))
 
-(defmacro define-io-server-function (name &body body)
-  `(defun ,name (stream)
-     (declare (type stream stream))
-     ,@body))
+(defparameter *color-change-tolerance* 3)
 
-(let ((byte-to-string 
+(let ((linefeed (format nil "~C[E" #\Esc))
+      (home (format nil "~C[H" #\Esc))
+      (byte-to-string 
         (make-array 256 :element-type 'string
                     :initial-contents
                     (loop :for value :below 256
                           :collect (format nil "~A" value))))) 
-  (defun write-terminal-buffer-element (stream char 
-                                        fg-red fg-green fg-blue 
-                                        bg-red bg-green bg-blue)
+  (defun write-terminal-buffer (stream terminal-buffer &optional ymin ymax xmin xmax)
     (declare (optimize (speed 3) (safety 0))
-             (type stream stream)
-             (type character char)
-             (type fixnum fg-red fg-green fg-blue bg-red bg-green bg-blue))
-    (write-char #\Esc stream)
-    (write-string "[38;2;" stream)
-    (write-string (aref byte-to-string fg-red) stream)
-    (write-char #\; stream)
-    (write-string (aref byte-to-string fg-green) stream)
-    (write-char #\; stream)
-    (write-string (aref byte-to-string fg-blue) stream)
-    (write-char #\m stream)
-    (write-char #\Esc stream)
-    (write-string "[48;2;" stream)
-    (write-string (aref byte-to-string bg-red) stream)
-    (write-char #\; stream)
-    (write-string (aref byte-to-string bg-green) stream)
-    (write-char #\; stream)
-    (write-string (aref byte-to-string bg-blue) stream)
-    (write-char #\m stream)
-    (write-char char stream)))
-
-(let ((linefeed (format nil "~C[E" #\Esc))
-      (home (format nil "~C[H" #\Esc))) 
-  (defun write-terminal-buffer (terminal-buffer stream)
-    (declare (optimize (speed 3) (safety 0))
-             (type stream stream)
-             (type terminal-buffer terminal-buffer))
-    (with-terminal-buffer-size terminal-buffer
-      (dotimes (y tb-size-y)
-        (write-string (if (zerop y) home linefeed) stream)
-        (dotimes (x tb-size-x)
-          (with-terminal-buffer-element terminal-buffer x y
-            (write-terminal-buffer-element 
-              stream char
-              fg-red fg-green fg-blue
-              bg-red bg-green bg-blue)))))
+             (type stream stream) (type terminal-buffer terminal-buffer))
+    (macrolet ((write-terminal-color (type stream red green blue 
+                                      last-red last-green last-blue)
+                 `(when (or (null ,last-red) (null ,last-green) (null ,last-blue)
+                            (let ((delta-red (the fixnum (abs (- ,red ,last-red))))
+                                  (delta-green (the fixnum (abs (- ,green ,last-green))))
+                                  (delta-blue (the fixnum (abs (- ,blue ,last-blue)))))
+                              (or (> delta-red (the fixnum *color-change-tolerance*))
+                                  (> delta-green (the fixnum *color-change-tolerance*))
+                                  (> delta-blue (the fixnum *color-change-tolerance*))))) 
+                    (setf ,last-red ,red ,last-green ,green ,last-blue ,blue)
+                    (write-char #\Esc ,stream)
+                    (write-string ,(ecase type (fg "[38;2;") (bg "[48;2;")) ,stream)
+                    (write-string (aref byte-to-string ,red) ,stream)
+                    (write-char #\; ,stream)
+                    (write-string (aref byte-to-string ,green) ,stream)
+                    (write-char #\; ,stream)
+                    (write-string (aref byte-to-string ,blue) ,stream)
+                    (write-char #\m ,stream))))
+      (with-terminal-buffer-size terminal-buffer
+        (let ((ymin (or ymin 0)) (ymax (or ymax tb-size-y))
+              (xmin (or xmin 0)) (xmax (or xmax tb-size-x))
+              last-fg-red last-fg-green last-fg-blue last-bg-red last-bg-green last-bg-blue) 
+          (declare (type fixnum ymin ymax xmin xmax))
+          (loop :for y :of-type fixnum :from ymin :below ymax :do
+                (progn
+                  (write-string (if (= y ymin) home linefeed) stream)
+                  (loop :for x :of-type fixnum :from xmin :below xmax :do
+                        (with-terminal-buffer-element terminal-buffer x y
+                          (write-terminal-color fg stream fg-red fg-green fg-blue
+                                                last-fg-red last-fg-green last-fg-blue)
+                          (write-terminal-color bg stream bg-red bg-green bg-blue
+                                                last-bg-red last-bg-green last-bg-blue)
+                          (write-char char stream))))))))
     (force-output stream)
     t))
 

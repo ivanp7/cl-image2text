@@ -13,7 +13,7 @@
             (setf char #\▂ 
                   fg-red i fg-green i fg-blue i
                   bg-red (- 255 i) bg-green (- 255 i) bg-blue (- 255 i)))))
-      (write-terminal-buffer bp stream)))
+      (write-terminal-buffer stream bp)))
     (finalize-terminal stream))
 
   (setf *io-server-function* #'io-server-function/color-test))
@@ -29,7 +29,7 @@
               (setf char (if (= x i) #\█ #\Space)
                     fg-red 255 fg-green 255 fg-blue 255
                     bg-red 0 bg-green 0 bg-blue 0))))
-        (write-terminal-buffer bp stream)))
+        (write-terminal-buffer stream bp)))
     (finalize-terminal stream))
 
   (setf *io-server-function* #'io-server-function/smoothness-test))
@@ -54,7 +54,7 @@
                     px-blue 0)))))
       (with-parallel-terminal-buffer-processing terminal-buffer
         (convert-image-to-text pixel-buffer terminal-buffer tb-ymin tb-ymax tb-xmin tb-xmax))
-      (write-terminal-buffer terminal-buffer stream))
+      (write-terminal-buffer stream terminal-buffer))
     (read-char stream)
     (finalize-terminal stream))
 
@@ -78,7 +78,7 @@
                         px-blue b)))))
           (with-parallel-terminal-buffer-processing terminal-buffer
             (convert-image-to-text pixel-buffer terminal-buffer tb-ymin tb-ymax tb-xmin tb-xmax))
-          (write-terminal-buffer terminal-buffer stream))))
+          (write-terminal-buffer stream terminal-buffer))))
     (read-char stream)
     (finalize-terminal stream))
 

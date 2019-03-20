@@ -16,6 +16,11 @@
               (write-string str stream)
               (force-output stream)))))))
 
+(defmacro define-io-server-function (name &body body)
+  `(defun ,name (stream)
+     (declare (type stream stream))
+     ,@body))
+
 (defvar *io-server* nil)
 (defvar *io-server-thread* nil)
 
