@@ -9,5 +9,6 @@
   :components ((:file "src/package") 
                (:file "src/io-server" :depends-on ("src/package"))
                (:file "src/color-buffer" :depends-on ("src/package"))
-               (:file "src/terminal-buffer" :depends-on ("src/color-buffer"))))
+               (:file "src/terminal-buffer" :depends-on ("src/color-buffer"))
+               (:file "src/session" :depends-on ("src/io-server" "src/terminal-buffer"))))
 

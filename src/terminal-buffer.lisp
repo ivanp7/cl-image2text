@@ -340,7 +340,8 @@
 (let ((init-string (format nil "~C[?1049h~:*~C[2J~:*~C[?7l~:*~C[?25l" #\Esc))
       (home (format nil "~C[H" #\Esc))) 
   (defun initialize-terminal (stream)
-    (declare (type stream stream))
+    (declare (optimize (speed 3) (safety 0))
+             (type stream stream))
     (write-string init-string stream)
     (write-string home stream)
     (force-output stream)
@@ -350,8 +351,19 @@
 (let ((final-string (format nil "~C[?1049l~:*~C[2J~:*~C[?7h~:*~C[?25h" #\Esc))
       (home (format nil "~C[H" #\Esc))) 
   (defun finalize-terminal (stream)
-    (declare (type stream stream))
+    (declare (optimize (speed 3) (safety 0))
+             (type stream stream))
     (write-string final-string stream)
+    (write-string home stream)
+    (force-output stream)
+    t))
+
+(let ((clear-string (format nil "~C[2J" #\Esc))
+      (home (format nil "~C[H" #\Esc))) 
+  (defun clear-terminal (stream)
+    (declare (optimize (speed 3) (safety 0))
+             (type stream stream))
+    (write-string clear-string stream)
     (write-string home stream)
     (force-output stream)
     t))
@@ -365,7 +377,7 @@
                     :initial-contents
                     (loop :for value :below 256
                           :collect (format nil "~A" value))))) 
-  (defun write-terminal-buffer (stream terminal-buffer &optional ymin ymax xmin xmax)
+  (defun write-terminal-buffer (stream terminal-buffer &optional (ymin 0) ymax (xmin 0) xmax)
     (declare (optimize (speed 3) (safety 0))
              (type stream stream) (type terminal-buffer terminal-buffer))
     (macrolet ((write-terminal-color (type stream red green blue 
@@ -387,8 +399,7 @@
                     (write-string (aref byte-to-string ,blue) ,stream)
                     (write-char #\m ,stream))))
       (with-terminal-buffer-size terminal-buffer
-        (let ((ymin (or ymin 0)) (ymax (or ymax tb-size-y))
-              (xmin (or xmin 0)) (xmax (or xmax tb-size-x))
+        (let ((ymax (or ymax tb-size-y)) (xmax (or xmax tb-size-x))
               last-fg-red last-fg-green last-fg-blue last-bg-red last-bg-green last-bg-blue) 
           (declare (type fixnum ymin ymax xmin xmax))
           (loop :for y :of-type fixnum :from ymin :below ymax :do

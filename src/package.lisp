@@ -10,5 +10,6 @@
            :with-terminal-buffer-element :char :fg-red :fg-green :fg-blue :bg-red :bg-green :bg-blue
            :with-parallel-terminal-buffer-processing :tb-xmin :tb-xmax :tb-ymin :tb-ymax
            :+horz-ppc+ :+vert-ppc+ :convert-image-to-text
-           :initialize-terminal :finalize-terminal :*color-change-tolerance* :write-terminal-buffer))
+           :initialize-terminal :finalize-terminal :clear-terminal
+           :*color-change-tolerance* :write-terminal-buffer))
 

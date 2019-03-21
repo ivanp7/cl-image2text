@@ -4,22 +4,22 @@
 
 (defparameter *port* 50511)
 
-(defvar *io-server-function* 
-  #'(lambda (stream)
-      (declare (type stream stream))
-      (let ((eof-value (gensym)) str)
-        (loop
-          (setf str (read-line stream nil eof-value))
-          (if (or (eq str eof-value) (equal str "~"))
-            (return)
-            (progn
-              (write-string str stream)
-              (force-output stream)))))))
-
 (defmacro define-io-server-function (name &body body)
   `(defun ,name (stream)
      (declare (type stream stream))
      ,@body))
+
+(define-io-server-function dummy-io-server-function
+  (let ((eof-value (gensym)) str)
+    (loop
+      (setf str (read-line stream nil eof-value))
+      (if (or (eq str eof-value) (equal str "~"))
+        (return)
+        (progn
+          (write-string str stream)
+          (force-output stream))))))
+
+(defvar *io-server-function* #'dummy-io-server-function)
 
 (defvar *io-server* nil)
 (defvar *io-server-thread* nil)
