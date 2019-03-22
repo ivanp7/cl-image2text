@@ -35,6 +35,24 @@
                (declare (ignorable char))
                ,@body)))))))
 
+(defun clone-terminal-buffer (dest src &optional xmin ymin xmax ymax)
+  (declare (optimize (speed 3) (safety 0))
+           (type terminal-buffer dest src)
+           (type (or null fixnum) xmin ymin xmax ymax))
+  (with-terminal-buffer-size src
+    (loop :for y :of-type fixnum :from (or ymin 0) :below (or ymax tb-size-y) :do
+          (loop :for x :of-type fixnum :from (or xmin 0) :below (or xmax tb-size-x) :do
+                (let (char-value fg-red-value fg-green-value fg-blue-value
+                      bg-red-value bg-green-value bg-blue-value) 
+                  (with-terminal-buffer-element src x y
+                    (setf char-value char fg-red-value fg-red fg-green-value fg-green
+                          fg-blue-value fg-blue bg-red-value bg-red bg-green-value bg-green
+                          bg-blue-value bg-blue))
+                  (with-terminal-buffer-element dest x y
+                    (setf char-value char fg-red fg-red-value fg-green fg-green-value
+                          fg-blue fg-blue-value bg-red bg-red-value bg-green bg-green-value
+                          bg-blue bg-blue-value)))))))
+
 ;;; PICTURE-TO-TEXT CONVERSION: ALGORITHM
 
 (defconstant +horz-ppc+ 2) ; pixels per character, x axis
@@ -314,30 +332,28 @@
 
 ;;; TERMINAL BUFFER OUTPUT
 
-;; switch to alt. buffer, clear screen, disable line wrap and hide cursor
 (let ((init-string (format nil "~C[?1049h~:*~C[2J~:*~C[?7l~:*~C[?25l" #\Esc))
+      (final-string (format nil "~C[?1049l~:*~C[2J~:*~C[?7h~:*~C[?25h" #\Esc))
+      (clear-string (format nil "~C[2J" #\Esc))
       (home (format nil "~C[H" #\Esc))) 
+
+  ;; switch to alt. buffer, clear screen, disable line wrap and hide cursor
   (defun initialize-terminal (stream)
     (declare (optimize (speed 3) (safety 0))
              (type stream stream))
     (write-string init-string stream)
     (write-string home stream)
     (force-output stream)
-    t))
+    t)
 
-;; switch to primary buffer, clear screen, enable line wrap and show cursor
-(let ((final-string (format nil "~C[?1049l~:*~C[2J~:*~C[?7h~:*~C[?25h" #\Esc))
-      (home (format nil "~C[H" #\Esc))) 
+  ;; switch to primary buffer, clear screen, enable line wrap and show cursor
   (defun finalize-terminal (stream)
     (declare (optimize (speed 3) (safety 0))
              (type stream stream))
     (write-string final-string stream)
-    (write-string home stream)
     (force-output stream)
-    t))
-
-(let ((clear-string (format nil "~C[2J" #\Esc))
-      (home (format nil "~C[H" #\Esc))) 
+    t)
+  
   (defun clear-terminal (stream)
     (declare (optimize (speed 3) (safety 0))
              (type stream stream))

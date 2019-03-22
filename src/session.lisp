@@ -4,13 +4,20 @@
 
 (defvar *master-up* nil)
 
+(defconstant +converter-threads+ #.(cl-cpus:get-number-of-processors))
+(defmacro define-converter-locks ()
+  `(defvar *converter-locks* 
+     (make-array ,+converter-threads+ :element-type 'bt:lock 
+                 :initial-contents (list ,@(loop :for i :below +converter-threads+
+                                                 :collect `(bt:make-lock))))))
+(define-converter-locks)
+
 (defvar *graphics-buffer-ready* (bt:make-condition-variable))
 (defvar *terminal-buffer-ready* (bt:make-condition-variable))
 
 (defvar *graphics-buffer*)
-(defvar *terminal-buffer-for-conversion*)
-(defvar *terminal-buffer-for-display*)
-(defvar *frame* (the fixnum 0))
+(defvar *terminal-buffer*)
+(defvar *frame* 0)
 
 (defmacro define-application-function (name &body body)
   `(defun ,name (stream graphics-buffer)
@@ -68,51 +75,46 @@
            (type (function (terminal-buffer)) *application-postfunction*))
   (if (not *master-up*)
     (unwind-protect
-        (let* ((number-of-segments (the fixnum (cl-cpus:get-number-of-processors)))
-               (segment-locks (make-array number-of-segments :element-type '(or null bt:lock)
-                                          :initial-element nil))
-               (segment-size-y (the fixnum (ceiling size-y number-of-segments))))
+        (let* ((segment-size-y (the fixnum (ceiling (the (unsigned-byte 64) size-y) 
+                                                    +converter-threads+))))
           (setf *graphics-buffer* (create-color-buffer (the fixnum (* size-x +horz-ppc+))
                                                        (the fixnum (* size-y +vert-ppc+)))
-                *terminal-buffer-for-conversion* (create-terminal-buffer size-x size-y)
-                *terminal-buffer-for-display* (create-terminal-buffer size-x size-y)
+                *terminal-buffer* (create-terminal-buffer size-x size-y)
                 *frame* 0)
           (setf *master-up* t)
-          (dotimes (i number-of-segments)
+          (dotimes (i +converter-threads+)
             (declare (type fixnum i))
-            (setf (svref segment-locks i) (bt:make-lock))
-            (bt:make-thread
-              (let* ((ymin (the fixnum (* i segment-size-y)))
-                     (ymax (the fixnum (+ ymin segment-size-y)))
-                     (segment-lock (svref segment-locks i)))
-                (setf ymax (the fixnum (min ymax size-y)))
+            (let* ((ymin (the fixnum (* i segment-size-y)))
+                   (ymax0 (the fixnum (+ ymin segment-size-y)))
+                   (ymax (the fixnum (min ymax0 size-y)))
+                   (segment-lock (svref *converter-locks* i)))
+              (bt:make-thread
                 #'(lambda ()
                     (condition-variable-loop 
                       *graphics-buffer-ready*
                       :master-up-expr
                       (progn
                         (bt:acquire-lock segment-lock t)
-                        (convert-image-to-text *graphics-buffer* 
-                                               *terminal-buffer-for-conversion*
-                                               ymin ymax)
+                        (convert-image-to-text *graphics-buffer* *terminal-buffer* ymin ymax)
                         (bt:release-lock segment-lock))
-                      :master-down-expr (return))))))
+                      :master-down-expr (return)))
+                :name "Picture-to-text converter thread")))
           (clear-terminal stream)
           (loop
             (if (funcall *application-function* stream *graphics-buffer*)
               (setf *frame* (the fixnum (1+ *frame*)))
               (return))
             (bt:condition-notify *graphics-buffer-ready*)
-            (dotimes (i number-of-segments)
-              (bt:acquire-lock (svref segment-locks i) t)
-              (bt:release-lock (svref segment-locks i)))
-            (funcall *application-postfunction* *terminal-buffer-for-conversion*)
-            (rotatef *terminal-buffer-for-conversion* *terminal-buffer-for-display*)
-            (bt:condition-notify *terminal-buffer-ready*)))
+            (dotimes (i +converter-threads+)
+              (bt:acquire-lock (svref *converter-locks* i) t))
+            (dotimes (i +converter-threads+)
+              (bt:release-lock (svref *converter-locks* i)))
+            (funcall *application-postfunction* *terminal-buffer*)
+            (bt:condition-notify *terminal-buffer-ready*)
+            (sleep 0.1)))
       (setf *master-up* nil *frame* 0)
       (bt:condition-notify *graphics-buffer-ready*)
-      (bt:condition-notify *terminal-buffer-ready*)
-      (sleep 1))
+      (bt:condition-notify *terminal-buffer-ready*))
     (write-line "Connection refused: a master connection already exists." stream)))
 
 (defun video-connection-handler (stream xmin ymin xmax ymax)
@@ -120,7 +122,8 @@
            (type stream stream)
            (type fixnum xmin ymin xmax ymax))
   (initialize-terminal stream)
-  (let (master-up)
+  (let (master-up (tb (create-terminal-buffer (the fixnum (- xmax xmin)) 
+                                              (the fixnum (- ymax ymin)))))
     (declare (type boolean master-up))
     (condition-variable-loop 
       *terminal-buffer-ready*
@@ -129,13 +132,15 @@
       :master-up-expr
       (progn
         (setf master-up t)
-        (write-terminal-buffer stream *terminal-buffer-for-display* ymin ymax xmin xmax))
+        (clone-terminal-buffer tb *terminal-buffer* xmin ymin xmax ymax)
+        (write-terminal-buffer stream tb ymin ymax xmin xmax))
       :master-down-expr
       (progn
         (when master-up
-          (setf master-up nil))
-        (clear-terminal stream)
-        (sleep 0.5))))
+          (setf master-up nil)
+          (clear-terminal stream))
+        (sleep 0.5)
+        (format stream "X"))))
   (finalize-terminal stream))
 
 (defun audio-connection-handler (stream channel) ;; TODO
