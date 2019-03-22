@@ -28,9 +28,11 @@
                                (terminal-buffer-bg-color-array ,terminal-buffer)))
              (,char-buf (the (simple-array character (* *))
                              (terminal-buffer-char-array ,terminal-buffer)))) 
+         (declare (ignorable ,char-buf))
          (with-color-buffer-element-colors fg ,fg-col-buf ,x ,y
            (with-color-buffer-element-colors bg ,bg-col-buf ,x ,y
-             (symbol-macrolet ((char (the character (aref ,char-buf ,y ,x))))
+             (symbol-macrolet ((char (aref ,char-buf ,y ,x)))
+               (declare (ignorable char))
                ,@body)))))))
 
 ;;; PICTURE-TO-TEXT CONVERSION: ALGORITHM
@@ -310,30 +312,6 @@
                           bg-green bg-green-value
                           bg-blue bg-blue-value)))))))
 
-;;; PARALLEL PROCESSING OF A TERMINAL BUFFER
-
-(defmacro with-parallel-terminal-buffer-processing (buffer &body body)
-  (alexandria:with-gensyms (number-of-threads)
-    `(with-terminal-buffer-size ,buffer
-       (let* ((,number-of-threads (the fixnum (1- (cl-cpus:get-number-of-processors))))
-              (threads (make-array ,number-of-threads :element-type '(or null bt:thread)
-                                   :initial-element nil))
-              (segment-size-y (the rational (/ tb-size-y (1+ ,number-of-threads)))))
-         (dotimes (thread-i ,number-of-threads)
-           (declare (type fixnum thread-i))
-           (let* ((tb-xmin 0) (tb-xmax tb-size-x)
-                  (tb-ymin (the fixnum (floor (* thread-i segment-size-y)))) 
-                  (tb-ymax (the fixnum (floor (* (1+ thread-i) segment-size-y)))))
-             (setf (svref threads thread-i) (bt:make-thread #'(lambda () ,@body)))))
-         (prog1
-           (let* ((tb-xmin 0) (tb-xmax tb-size-x)
-                  (tb-ymin (the fixnum (floor (* ,number-of-threads segment-size-y)))) 
-                  (tb-ymax tb-size-y))
-             ,@body)
-           (dotimes (thread-i ,number-of-threads)
-             (declare (type fixnum thread-i))
-             (bt:join-thread (svref threads thread-i))))))))
-
 ;;; TERMINAL BUFFER OUTPUT
 
 ;; switch to alt. buffer, clear screen, disable line wrap and hide cursor
@@ -402,10 +380,10 @@
         (let ((ymax (or ymax tb-size-y)) (xmax (or xmax tb-size-x))
               last-fg-red last-fg-green last-fg-blue last-bg-red last-bg-green last-bg-blue) 
           (declare (type fixnum ymin ymax xmin xmax))
-          (loop :for y :of-type fixnum :from ymin :below ymax :do
+          (loop :for y :of-type fixnum :from (max 0 ymin) :below (min ymax tb-size-y) :do
                 (progn
                   (write-string (if (= y ymin) home linefeed) stream)
-                  (loop :for x :of-type fixnum :from xmin :below xmax :do
+                  (loop :for x :of-type fixnum :from (max 0 xmin) :below (min xmax tb-size-x) :do
                         (with-terminal-buffer-element terminal-buffer x y
                           (write-terminal-color fg stream fg-red fg-green fg-blue
                                                 last-fg-red last-fg-green last-fg-blue)

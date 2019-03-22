@@ -4,6 +4,17 @@
 
 (defparameter *port* 50511)
 
+(defun read-key (stream &optional eof-value)
+  (declare (optimize (speed 3) (safety 0))
+           (type stream stream))
+  (let ((char (the (or null character) (read-char-no-hang stream nil eof-value))))
+    (when char
+      (unread-char char stream)
+      (let ((str (the simple-string (read-line stream))))
+        (aref str 0)))))
+
+(declaim (inline read-key))
+
 (defmacro define-io-server-function (name &body body)
   `(defun ,name (stream)
      (declare (type stream stream))
