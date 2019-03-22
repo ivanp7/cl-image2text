@@ -16,6 +16,7 @@
   `(defun ,name (stream graphics-buffer)
      (declare (type stream stream)
               (type (simple-array fixnum (* * 3)) graphics-buffer)
+              (type fixnum *frame*)
               (ignorable stream graphics-buffer))
      ,@body))
 
@@ -23,12 +24,17 @@
   (declare (optimize (speed 3) (safety 0)))
   (with-color-buffer-size gb graphics-buffer
     (dotimes (y gb-size-y)
+      (declare (type fixnum y))
       (dotimes (x gb-size-x)
+        (declare (type fixnum x))
         (with-color-buffer-element-colors gb graphics-buffer x y
-          (let ((color (round (* 255 (+ (/ (mod (+ x *frame*) gb-size-x) 
-                                           gb-size-x 2) 
-                                        (/ (mod (+ y *frame*) gb-size-y) 
-                                           gb-size-y 2)))))) 
+          (let* ((displ-x (the fixnum (mod (the fixnum (+ x *frame*)) gb-size-x)))
+                 (displ-y (the fixnum (mod (the fixnum (+ y *frame*)) gb-size-y)))
+                 (displ-xy (the fixnum (* displ-x gb-size-y)))
+                 (displ-yx (the fixnum (* displ-y gb-size-x)))
+                 (xyyx (the fixnum (+ displ-xy displ-yx)))
+                 (xyyx255 (the fixnum (* 255 xyyx)))
+                 (color (round xyyx255 (the fixnum (* 2 gb-size-x gb-size-y))))) 
             (setf gb-red color gb-green color gb-blue color))))))
   (let ((keypress (read-key stream #\q)))
     (when keypress
