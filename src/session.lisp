@@ -16,13 +16,17 @@
       (setf *video-locks* (delete lock *video-locks* :test #'eq))))
 
   (defun start-video-output ()
+    (declare (optimize (speed 3) (safety 0)))
     (bt:with-lock-held (video-locks-collection-lock)
       (dolist (lock *video-locks*)
+        (declare (type bt:lock lock))
         (bt:release-lock lock))))
   
   (defun wait-for-video-output-finish ()
+    (declare (optimize (speed 3) (safety 0)))
     (bt:with-lock-held (video-locks-collection-lock)
       (dolist (lock *video-locks*)
+        (declare (type bt:lock lock))
         (bt:acquire-lock lock t)))))
 
 (defvar *graphics-buffer*)
@@ -43,8 +47,8 @@
       (dotimes (x gb-size-x)
         (declare (type fixnum x))
         (with-color-buffer-element-colors gb graphics-buffer x y
-          (let* ((displ-x (the fixnum (mod (the fixnum (+ x *frame*)) gb-size-x)))
-                 (displ-y (the fixnum (mod (the fixnum (+ y *frame*)) gb-size-y)))
+          (let* ((displ-x (the fixnum (mod (the fixnum (+ x (the fixnum *frame*))) gb-size-x)))
+                 (displ-y (the fixnum (mod (the fixnum (+ y (the fixnum *frame*))) gb-size-y)))
                  (displ-xy (the fixnum (* displ-x gb-size-y)))
                  (displ-yx (the fixnum (* displ-y gb-size-x)))
                  (xyyx (the fixnum (+ displ-xy displ-yx)))
@@ -63,13 +67,15 @@
   (declare (optimize (speed 3) (safety 0))
            (type stream stream)
            (type fixnum *frame* size-x size-y)
-           (type (function (stream (simple-array fixnum (* * 3))) boolean) *application-function*))
+           (type (function (stream (simple-array fixnum (* * 3))) boolean) *application-function*)
+           (inline start-video-output wait-for-video-output-finish))
   (if (not *session-online*)
     (unwind-protect
         (progn
           (setf *graphics-buffer* (create-color-buffer (the fixnum (* size-x +horz-ppc+))
                                                        (the fixnum (* size-y +vert-ppc+)))
                 *frame* 0)
+          (wait-for-video-output-finish)
           (setf *session-online* t)
           (clear-terminal stream)
           (loop
