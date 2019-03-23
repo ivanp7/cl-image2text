@@ -306,7 +306,7 @@
                   (#\▂ (6 7)) (#\▄ (4 5 6 7)) (#\▆ (2 3 4 5 6 7)) (#\▌ (0 2 4 6)))
     pixel-buffer px py))
 
-(defun convert-image-to-text (pixel-buffer terminal-buffer &optional ymin ymax xmin xmax)
+(defun convert-image-to-text (pixel-buffer terminal-buffer &optional xmin ymin xmax ymax)
   (declare (optimize (speed 3) (safety 0))
            (type (simple-array fixnum (* * 3)) pixel-buffer)
            (type terminal-buffer terminal-buffer)
@@ -321,7 +321,8 @@
                   (declare (type character char-value)
                            (type fixnum fg-red-value fg-green-value fg-blue-value 
                                  bg-red-value bg-green-value bg-blue-value))
-                  (with-terminal-buffer-element terminal-buffer px py
+                  (with-terminal-buffer-element terminal-buffer (the fixnum (- px xmin)) 
+                                                                (the fixnum (- py ymin))
                     (setf char char-value
                           fg-red fg-red-value
                           fg-green fg-green-value
@@ -334,7 +335,7 @@
 
 (let ((init-string (format nil "~C[?1049h~:*~C[2J~:*~C[?7l~:*~C[?25l" #\Esc))
       (final-string (format nil "~C[?1049l~:*~C[2J~:*~C[?7h~:*~C[?25h" #\Esc))
-      (clear-string (format nil "~C[2J" #\Esc))
+      (clear-string (format nil "~C[39;49m~:*~C[2J" #\Esc))
       (home (format nil "~C[H" #\Esc))) 
 
   ;; switch to alt. buffer, clear screen, disable line wrap and hide cursor
@@ -351,6 +352,7 @@
     (declare (optimize (speed 3) (safety 0))
              (type stream stream))
     (write-string final-string stream)
+    (write-string home stream)
     (force-output stream)
     t)
   
@@ -362,7 +364,7 @@
     (force-output stream)
     t))
 
-(defparameter *color-change-tolerance* 3)
+(defparameter *color-change-tolerance* 0)
 
 (let ((linefeed (format nil "~C[E" #\Esc))
       (home (format nil "~C[H" #\Esc))

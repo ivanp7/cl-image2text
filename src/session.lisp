@@ -2,28 +2,36 @@
 
 (in-package #:traytr)
 
-(defvar *master-up* nil)
+(defvar *session-online* nil)
 
-(defconstant +converter-threads+ #.(cl-cpus:get-number-of-processors))
-(defmacro define-converter-locks ()
-  `(defvar *converter-locks* 
-     (make-array ,+converter-threads+ :element-type 'bt:lock 
-                 :initial-contents (list ,@(loop :for i :below +converter-threads+
-                                                 :collect `(bt:make-lock))))))
-(define-converter-locks)
+(defvar *video-locks* ())
 
-(defvar *graphics-buffer-ready* (bt:make-condition-variable))
-(defvar *terminal-buffer-ready* (bt:make-condition-variable))
+(let ((video-locks-collection-lock (bt:make-lock "Video locks collection lock"))) 
+  (defun add-video-lock (lock)
+    (bt:with-lock-held (video-locks-collection-lock)
+      (push lock *video-locks*)))
+
+  (defun remove-video-lock (lock)
+    (bt:with-lock-held (video-locks-collection-lock)
+      (setf *video-locks* (delete lock *video-locks* :test #'eq))))
+
+  (defun start-video-output ()
+    (bt:with-lock-held (video-locks-collection-lock)
+      (dolist (lock *video-locks*)
+        (bt:release-lock lock))))
+  
+  (defun wait-for-video-output-finish ()
+    (bt:with-lock-held (video-locks-collection-lock)
+      (dolist (lock *video-locks*)
+        (bt:acquire-lock lock t)))))
 
 (defvar *graphics-buffer*)
-(defvar *terminal-buffer*)
 (defvar *frame* 0)
 
 (defmacro define-application-function (name &body body)
   `(defun ,name (stream graphics-buffer)
      (declare (type stream stream)
               (type (simple-array fixnum (* * 3)) graphics-buffer)
-              (type fixnum *frame*)
               (ignorable stream graphics-buffer))
      ,@body))
 
@@ -50,100 +58,60 @@
     (not (eql keypress #\q))))
 
 (defvar *application-function* #'dummy-application)
-(defvar *application-postfunction* (constantly nil))
 
-(defmacro condition-variable-loop (condition-variable &key initial-expr 
-                                                      master-up-expr master-down-expr)
-  `(let ((lock (the bt:lock (bt:make-lock))) (frame 0)) 
-     (bt:with-lock-held (lock)
-       (loop
-         (progn
-           ,initial-expr
-           (if *master-up*
-             (progn
-               (bt:condition-wait ,condition-variable lock)
-               (when (< frame (the fixnum *frame*))
-                 (setf frame (the fixnum *frame*))
-                 ,master-up-expr))
-             ,master-down-expr))))))
-
-(defun master-connection-handler (stream size-x size-y)
+(defun session-handler (stream size-x size-y)
   (declare (optimize (speed 3) (safety 0))
            (type stream stream)
            (type fixnum *frame* size-x size-y)
-           (type (function (stream (simple-array fixnum (* * 3))) boolean) *application-function*)
-           (type (function (terminal-buffer)) *application-postfunction*))
-  (if (not *master-up*)
+           (type (function (stream (simple-array fixnum (* * 3))) boolean) *application-function*))
+  (if (not *session-online*)
     (unwind-protect
-        (let* ((segment-size-y (the fixnum (ceiling (the (unsigned-byte 64) size-y) 
-                                                    +converter-threads+))))
+        (progn
           (setf *graphics-buffer* (create-color-buffer (the fixnum (* size-x +horz-ppc+))
                                                        (the fixnum (* size-y +vert-ppc+)))
-                *terminal-buffer* (create-terminal-buffer size-x size-y)
                 *frame* 0)
-          (setf *master-up* t)
-          (dotimes (i +converter-threads+)
-            (declare (type fixnum i))
-            (let* ((ymin (the fixnum (* i segment-size-y)))
-                   (ymax0 (the fixnum (+ ymin segment-size-y)))
-                   (ymax (the fixnum (min ymax0 size-y)))
-                   (segment-lock (svref *converter-locks* i)))
-              (bt:make-thread
-                #'(lambda ()
-                    (condition-variable-loop 
-                      *graphics-buffer-ready*
-                      :master-up-expr
-                      (progn
-                        (bt:acquire-lock segment-lock t)
-                        (convert-image-to-text *graphics-buffer* *terminal-buffer* ymin ymax)
-                        (bt:release-lock segment-lock))
-                      :master-down-expr (return)))
-                :name "Picture-to-text converter thread")))
+          (setf *session-online* t)
           (clear-terminal stream)
           (loop
             (if (funcall *application-function* stream *graphics-buffer*)
               (setf *frame* (the fixnum (1+ *frame*)))
               (return))
-            (bt:condition-notify *graphics-buffer-ready*)
-            (dotimes (i +converter-threads+)
-              (bt:acquire-lock (svref *converter-locks* i) t))
-            (dotimes (i +converter-threads+)
-              (bt:release-lock (svref *converter-locks* i)))
-            (funcall *application-postfunction* *terminal-buffer*)
-            (bt:condition-notify *terminal-buffer-ready*)
-            (sleep 0.1)))
-      (setf *master-up* nil *frame* 0)
-      (bt:condition-notify *graphics-buffer-ready*)
-      (bt:condition-notify *terminal-buffer-ready*))
+            (start-video-output)
+            (wait-for-video-output-finish)))
+      (setf *session-online* nil *frame* 0)
+      (start-video-output))
     (write-line "Connection refused: a master connection already exists." stream)))
 
-(defun video-connection-handler (stream xmin ymin xmax ymax)
+(defun video-handler (stream xmin ymin xmax ymax)
   (declare (optimize (speed 3) (safety 0))
            (type stream stream)
            (type fixnum xmin ymin xmax ymax))
   (initialize-terminal stream)
-  (let (master-up (tb (create-terminal-buffer (the fixnum (- xmax xmin)) 
-                                              (the fixnum (- ymax ymin)))))
-    (declare (type boolean master-up))
-    (condition-variable-loop 
-      *terminal-buffer-ready*
-      :initial-expr
-      (when (eql (read-key stream #\q) #\q) (return))
-      :master-up-expr
-      (progn
-        (setf master-up t)
-        (clone-terminal-buffer tb *terminal-buffer* xmin ymin xmax ymax)
-        (write-terminal-buffer stream tb ymin ymax xmin xmax))
-      :master-down-expr
-      (progn
-        (when master-up
-          (setf master-up nil)
-          (clear-terminal stream))
-        (sleep 0.5)
-        (format stream "X"))))
+  (let (session-online-flag (tb (create-terminal-buffer (the fixnum (- xmax xmin)) 
+                                                        (the fixnum (- ymax ymin))))
+        (lock (bt:make-lock "Video lock")))
+    (declare (type boolean session-online-flag)
+             (type terminal-buffer tb)
+             (type bt:lock lock))
+    (add-video-lock lock)
+    (loop
+      (when (eql (read-char-no-hang stream nil #\q) #\q) (return))
+      (if *session-online*
+        (progn
+          (setf session-online-flag t)
+          (bt:acquire-lock lock t)
+          (convert-image-to-text *graphics-buffer* tb xmin ymin xmax ymax)
+          (bt:release-lock lock)
+          (write-terminal-buffer stream tb))
+        (progn
+          (when session-online-flag
+            (setf session-online-flag nil)
+            (clear-terminal stream))
+          (sleep 0.1))))
+    (remove-video-lock lock))
   (finalize-terminal stream))
 
-(defun audio-connection-handler (stream channel) ;; TODO
+(defun audio-handler (stream channel) ;; TODO
   (declare (optimize (speed 3) (safety 0))
            (type stream stream)
            (type symbol channel))
@@ -156,13 +124,13 @@
   (declare (optimize (speed 3) (safety 0)))
   (let ((channel-type (read-line stream)))
     (cond
-      ((equalp channel-type "master") 
+      ((equalp channel-type "session") 
        (let ((size-x (read stream)) (size-y (read stream)))
          (check-type size-x fixnum)
          (check-type size-y fixnum)
          (assert (plusp size-x))
          (assert (plusp size-y))
-         (master-connection-handler stream size-x size-y)))
+         (session-handler stream size-x size-y)))
       ((equalp channel-type "video") 
        (let ((xmin (read stream)) (ymin (read stream)) 
              (xmax (read stream)) (ymax (read stream)))
@@ -174,11 +142,11 @@
          (assert (>= ymin 0))
          (assert (> xmax xmin))
          (assert (> ymax ymin))
-         (video-connection-handler stream xmin ymin xmax ymax)))
+         (video-handler stream xmin ymin xmax ymax)))
       ((equalp channel-type "audio") 
        (let ((channel (read stream)))
          (check-type channel symbol)
-         (audio-connection-handler stream channel))))))
+         (audio-handler stream channel))))))
 
 (setf *io-server-function* #'connection-handler)
 

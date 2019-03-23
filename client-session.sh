@@ -7,7 +7,7 @@ if [ -z $3 ]; then SERVER_PORT=50511; else SERVER_PORT=$1; fi
 if [ -z $4 ]; then SERVER_IP=127.0.0.1; else SERVER_IP=$2; fi
 
 {
-    echo "master"
+    echo "session"
     echo "$SIZE_X $SIZE_Y";
     while read -s -n1 c
     do echo "$c"
