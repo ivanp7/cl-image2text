@@ -1,6 +1,6 @@
 ;;;; terminal-buffer.lisp
 
-(in-package #:traytr)
+(in-package #:cl-image2text)
 
 ;;; TERMINAL BUFFER
 
@@ -34,24 +34,6 @@
              (symbol-macrolet ((char (aref ,char-buf ,y ,x)))
                (declare (ignorable char))
                ,@body)))))))
-
-(defun clone-terminal-buffer (dest src &optional xmin ymin xmax ymax)
-  (declare (optimize (speed 3) (safety 0))
-           (type terminal-buffer dest src)
-           (type (or null fixnum) xmin ymin xmax ymax))
-  (with-terminal-buffer-size src
-    (loop :for y :of-type fixnum :from (or ymin 0) :below (or ymax tb-size-y) :do
-          (loop :for x :of-type fixnum :from (or xmin 0) :below (or xmax tb-size-x) :do
-                (let (char-value fg-red-value fg-green-value fg-blue-value
-                      bg-red-value bg-green-value bg-blue-value) 
-                  (with-terminal-buffer-element src x y
-                    (setf char-value char fg-red-value fg-red fg-green-value fg-green
-                          fg-blue-value fg-blue bg-red-value bg-red bg-green-value bg-green
-                          bg-blue-value bg-blue))
-                  (with-terminal-buffer-element dest x y
-                    (setf char-value char fg-red fg-red-value fg-green fg-green-value
-                          fg-blue fg-blue-value bg-red bg-red-value bg-green bg-green-value
-                          bg-blue bg-blue-value)))))))
 
 ;;; PICTURE-TO-TEXT CONVERSION: ALGORITHM
 
@@ -306,7 +288,7 @@
                   (#\▂ (6 7)) (#\▄ (4 5 6 7)) (#\▆ (2 3 4 5 6 7)) (#\▌ (0 2 4 6)))
     pixel-buffer px py))
 
-(defun convert-image-to-text (pixel-buffer terminal-buffer &optional xmin ymin xmax ymax)
+(defun convert-pixels-to-text (pixel-buffer terminal-buffer &optional xmin ymin xmax ymax)
   (declare (optimize (speed 3) (safety 0))
            (type (simple-array fixnum (* * 3)) pixel-buffer)
            (type terminal-buffer terminal-buffer)
@@ -331,49 +313,44 @@
                           bg-green bg-green-value
                           bg-blue bg-blue-value)))))))
 
+;;; PARALLEL PROCESSING OF A TERMINAL BUFFER
+
+(defmacro with-parallel-terminal-buffer-processing (buffer &body body)
+  (alexandria:with-gensyms (number-of-threads prod1 prod2 prod threads thread-i)
+    `(with-terminal-buffer-size ,buffer
+       (let* ((,number-of-threads #.(cl-cpus:get-number-of-processors))
+              (,threads (make-array (1- ,number-of-threads) :element-type '(or null bt:thread)
+                                   :initial-element nil)))
+         (dotimes (,thread-i (1- ,number-of-threads))
+           (declare (type fixnum ,thread-i))
+           (let* ((tb-xmin 0) (tb-xmax tb-size-x)
+                  (,prod1 (the fixnum (* ,thread-i tb-size-y)))
+                  (tb-ymin (the fixnum (floor ,prod1 ,number-of-threads)))
+                  (,prod2 (the fixnum (+ ,prod1 tb-size-y)))
+                  (tb-ymax (the fixnum (floor ,prod2 ,number-of-threads))))
+             (setf (svref ,threads ,thread-i) (bt:make-thread #'(lambda () ,@body)))))
+         (prog1
+           (let* ((tb-xmin 0) (tb-xmax tb-size-x)
+                  (,prod (the fixnum (* (1- ,number-of-threads) tb-size-y)))
+                  (tb-ymin (the fixnum (floor ,prod ,number-of-threads))) 
+                  (tb-ymax tb-size-y))
+             ,@body)
+           (dotimes (,thread-i ,number-of-threads)
+             (declare (type fixnum ,thread-i))
+             (bt:join-thread (svref ,threads ,thread-i))))))))
+
 ;;; TERMINAL BUFFER OUTPUT
-
-(let ((init-string (format nil "~C[?1049h~:*~C[2J~:*~C[?7l~:*~C[?25l" #\Esc))
-      (final-string (format nil "~C[?1049l~:*~C[2J~:*~C[?7h~:*~C[?25h" #\Esc))
-      (clear-string (format nil "~C[39;49m~:*~C[2J" #\Esc))
-      (home (format nil "~C[H" #\Esc))) 
-
-  ;; switch to alt. buffer, clear screen, disable line wrap and hide cursor
-  (defun initialize-terminal (stream)
-    (declare (optimize (speed 3) (safety 0))
-             (type stream stream))
-    (write-string init-string stream)
-    (write-string home stream)
-    (force-output stream)
-    t)
-
-  ;; switch to primary buffer, clear screen, enable line wrap and show cursor
-  (defun finalize-terminal (stream)
-    (declare (optimize (speed 3) (safety 0))
-             (type stream stream))
-    (write-string final-string stream)
-    (write-string home stream)
-    (force-output stream)
-    t)
-  
-  (defun clear-terminal (stream)
-    (declare (optimize (speed 3) (safety 0))
-             (type stream stream))
-    (write-string clear-string stream)
-    (write-string home stream)
-    (force-output stream)
-    t))
 
 (defparameter *color-change-tolerance* 0)
 
 (let ((linefeed (format nil "~C[E" #\Esc))
-      (home (format nil "~C[H" #\Esc))
       (byte-to-string 
         (make-array 256 :element-type 'string
                     :initial-contents
                     (loop :for value :below 256
                           :collect (format nil "~A" value))))) 
-  (defun write-terminal-buffer (stream terminal-buffer &optional (ymin 0) ymax (xmin 0) xmax)
+  (defun write-terminal-buffer (terminal-buffer &optional (stream *standard-output*) 
+                                                (ymin 0) ymax (xmin 0) xmax)
     (declare (optimize (speed 3) (safety 0))
              (type stream stream) (type terminal-buffer terminal-buffer))
     (macrolet ((write-terminal-color (type stream red green blue 
@@ -400,7 +377,7 @@
           (declare (type fixnum ymin ymax xmin xmax))
           (loop :for y :of-type fixnum :from (max 0 ymin) :below (min ymax tb-size-y) :do
                 (progn
-                  (write-string (if (= y ymin) home linefeed) stream)
+                  (unless (= y ymin) (write-string linefeed stream))
                   (loop :for x :of-type fixnum :from (max 0 xmin) :below (min xmax tb-size-x) :do
                         (with-terminal-buffer-element terminal-buffer x y
                           (write-terminal-color fg stream fg-red fg-green fg-blue

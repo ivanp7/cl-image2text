@@ -1,6 +1,6 @@
 ;;;; server-test.lisp
 
-(in-package #:traytr-test)
+(in-package #:cl-image2text-test)
 
 (defun set-io-server-function/color-test (&optional (size-x 238) (size-y 66))
   (define-io-server-function io-server-function/color-test

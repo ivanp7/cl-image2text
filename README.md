@@ -1,7 +1,7 @@
-# traytr
+# cl-image2text
 ### _Ivan Podmazov <ivanpzv8@gmail.com>_
 
-**traytr** (pronounced like *traitor* /ˈtreɪtə/) is a Terminal (Text) RAY TRacer engine.
+An image-to-Unicode block characters converter.
 
 ## License
 

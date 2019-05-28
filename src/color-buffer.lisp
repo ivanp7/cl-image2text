@@ -1,6 +1,6 @@
 ;;;; color-buffer.lisp
 
-(in-package #:traytr)
+(in-package #:cl-image2text)
 
 (defun create-color-buffer (x y)
   (make-array `(,y ,x 3) :element-type 'fixnum :initial-element 0))
