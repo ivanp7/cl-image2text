@@ -375,14 +375,14 @@
           (declare (type fixnum ymin ymax xmin xmax))
           (loop :for y :of-type fixnum :from (max 0 ymin) :below (min ymax tb-size-y) :do
                 (progn
-                  (unless (= y ymin) (write-string linefeed stream))
                   (loop :for x :of-type fixnum :from (max 0 xmin) :below (min xmax tb-size-x) :do
                         (with-terminal-buffer-element terminal-buffer x y
                           (write-terminal-color fg stream fg-red fg-green fg-blue
                                                 last-fg-red last-fg-green last-fg-blue)
                           (write-terminal-color bg stream bg-red bg-green bg-blue
                                                 last-bg-red last-bg-green last-bg-blue)
-                          (write-char char stream))))))))
+                          (write-char char stream)))
+                  (write-string linefeed stream))))))
     (force-output stream)
     t))
 
