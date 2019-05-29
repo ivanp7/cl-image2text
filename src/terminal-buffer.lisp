@@ -294,24 +294,22 @@
            (type terminal-buffer terminal-buffer)
            (type (or fixnum null) ymin ymax xmin xmax))
   (with-terminal-buffer-size terminal-buffer
-    (loop :for py :of-type fixnum :from (or ymin 0) :below (or ymax tb-size-y) :do
-          (loop :for px :of-type fixnum :from (or xmin 0) :below (or xmax tb-size-x) :do
-                (multiple-value-bind (char-value 
-                                      fg-red-value fg-green-value fg-blue-value 
-                                      bg-red-value bg-green-value bg-blue-value)
+    (let ((xmin (or xmin 0)) (ymin (or ymin 0)) 
+          (xmax (or xmax tb-size-x)) (ymax (or ymax tb-size-y)))
+      (loop :for py :of-type fixnum :from ymin :below ymax :do
+            (loop :for px :of-type fixnum :from xmin :below xmax :do
+                  (multiple-value-bind (char-value 
+                                         fg-red-value fg-green-value fg-blue-value 
+                                         bg-red-value bg-green-value bg-blue-value)
                     (convert-cell-to-character pixel-buffer px py)
-                  (declare (type character char-value)
-                           (type fixnum fg-red-value fg-green-value fg-blue-value 
-                                 bg-red-value bg-green-value bg-blue-value))
-                  (with-terminal-buffer-element terminal-buffer (the fixnum (- px xmin)) 
-                                                                (the fixnum (- py ymin))
-                    (setf char char-value
-                          fg-red fg-red-value
-                          fg-green fg-green-value
-                          fg-blue fg-blue-value
-                          bg-red bg-red-value
-                          bg-green bg-green-value
-                          bg-blue bg-blue-value)))))))
+                    (declare (type character char-value)
+                             (type fixnum fg-red-value fg-green-value fg-blue-value 
+                                   bg-red-value bg-green-value bg-blue-value))
+                    (with-terminal-buffer-element terminal-buffer 
+                        (the fixnum (- px xmin)) (the fixnum (- py ymin))
+                      (setf char char-value 
+                            fg-red fg-red-value fg-green fg-green-value fg-blue fg-blue-value
+                            bg-red bg-red-value bg-green bg-green-value bg-blue bg-blue-value))))))))
 
 ;;; PARALLEL PROCESSING OF A TERMINAL BUFFER
 
@@ -343,7 +341,7 @@
 
 (defparameter *color-change-tolerance* 0)
 
-(let ((linefeed (format nil "~C[E" #\Esc))
+(let ((linefeed (format nil "~C[0m~%" #\Esc))
       (byte-to-string 
         (make-array 256 :element-type 'string
                     :initial-contents
