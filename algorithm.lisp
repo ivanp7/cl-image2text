@@ -1,41 +1,6 @@
-;;;; terminal-buffer.lisp
+;;;; algorithm.lisp
 
 (in-package #:cl-image2text)
-
-;;; TERMINAL BUFFER
-
-(defstruct terminal-buffer
-  (char-array nil :type (simple-array character (* *)))
-  (fg-color-array nil :type (simple-array fixnum (* * 3)))
-  (bg-color-array nil :type (simple-array fixnum (* * 3))))
-
-(defun create-terminal-buffer (x y)
-  (make-terminal-buffer 
-    :char-array (make-array `(,y ,x) :element-type 'character :initial-element #\Space)
-    :fg-color-array (create-color-buffer x y)
-    :bg-color-array (create-color-buffer x y)))
-
-(defmacro with-terminal-buffer-size (terminal-buffer &body body)
-  `(with-color-buffer-size tb (terminal-buffer-fg-color-array ,terminal-buffer)
-     ,@body))
-
-(defmacro with-terminal-buffer-element (terminal-buffer x y &body body)
-  (alexandria:once-only (terminal-buffer x y) 
-    (alexandria:with-gensyms (fg-col-buf bg-col-buf char-buf)
-      `(let ((,fg-col-buf (the (simple-array fixnum (* * 3))
-                               (terminal-buffer-fg-color-array ,terminal-buffer)))
-             (,bg-col-buf (the (simple-array fixnum (* * 3))
-                               (terminal-buffer-bg-color-array ,terminal-buffer)))
-             (,char-buf (the (simple-array character (* *))
-                             (terminal-buffer-char-array ,terminal-buffer)))) 
-         (declare (ignorable ,char-buf))
-         (with-color-buffer-element-colors fg ,fg-col-buf ,x ,y
-           (with-color-buffer-element-colors bg ,bg-col-buf ,x ,y
-             (symbol-macrolet ((char (aref ,char-buf ,y ,x)))
-               (declare (ignorable char))
-               ,@body)))))))
-
-;;; PICTURE-TO-TEXT CONVERSION: ALGORITHM
 
 (defconstant +horz-ppc+ 2) ; pixels per character, x axis
 (defconstant +vert-ppc+ 4) ; pixels per character, y axis
@@ -336,53 +301,4 @@
            (dotimes (,thread-i ,number-of-threads)
              (declare (type fixnum ,thread-i))
              (bt:join-thread (svref ,threads ,thread-i))))))))
-
-;;; TERMINAL BUFFER OUTPUT
-
-(defparameter *color-change-tolerance* 0)
-
-(let ((linefeed (format nil "~C[0m~%" #\Esc))
-      (byte-to-string 
-        (make-array 256 :element-type 'string
-                    :initial-contents
-                    (loop :for value :below 256
-                          :collect (format nil "~A" value))))) 
-  (defun write-terminal-buffer (terminal-buffer &optional (stream *standard-output*) 
-                                                (ymin 0) ymax (xmin 0) xmax)
-    (declare (optimize (speed 3) (safety 0))
-             (type stream stream) (type terminal-buffer terminal-buffer))
-    (macrolet ((write-terminal-color (type stream red green blue 
-                                      last-red last-green last-blue)
-                 `(when (or (null ,last-red) (null ,last-green) (null ,last-blue)
-                            (let ((delta-red (the fixnum (abs (- ,red ,last-red))))
-                                  (delta-green (the fixnum (abs (- ,green ,last-green))))
-                                  (delta-blue (the fixnum (abs (- ,blue ,last-blue)))))
-                              (or (> delta-red (the fixnum *color-change-tolerance*))
-                                  (> delta-green (the fixnum *color-change-tolerance*))
-                                  (> delta-blue (the fixnum *color-change-tolerance*))))) 
-                    (setf ,last-red ,red ,last-green ,green ,last-blue ,blue)
-                    (write-char #\Esc ,stream)
-                    (write-string ,(ecase type (fg "[38;2;") (bg "[48;2;")) ,stream)
-                    (write-string (aref byte-to-string ,red) ,stream)
-                    (write-char #\; ,stream)
-                    (write-string (aref byte-to-string ,green) ,stream)
-                    (write-char #\; ,stream)
-                    (write-string (aref byte-to-string ,blue) ,stream)
-                    (write-char #\m ,stream))))
-      (with-terminal-buffer-size terminal-buffer
-        (let ((ymax (or ymax tb-size-y)) (xmax (or xmax tb-size-x))
-              last-fg-red last-fg-green last-fg-blue last-bg-red last-bg-green last-bg-blue) 
-          (declare (type fixnum ymin ymax xmin xmax))
-          (loop :for y :of-type fixnum :from (max 0 ymin) :below (min ymax tb-size-y) :do
-                (progn
-                  (loop :for x :of-type fixnum :from (max 0 xmin) :below (min xmax tb-size-x) :do
-                        (with-terminal-buffer-element terminal-buffer x y
-                          (write-terminal-color fg stream fg-red fg-green fg-blue
-                                                last-fg-red last-fg-green last-fg-blue)
-                          (write-terminal-color bg stream bg-red bg-green bg-blue
-                                                last-bg-red last-bg-green last-bg-blue)
-                          (write-char char stream)))
-                  (write-string linefeed stream))))))
-    (force-output stream)
-    t))
 
