@@ -264,14 +264,13 @@
       (loop :for py :of-type fixnum :from ymin :below ymax :do
             (loop :for px :of-type fixnum :from xmin :below xmax :do
                   (multiple-value-bind (char-value 
-                                         fg-red-value fg-green-value fg-blue-value 
-                                         bg-red-value bg-green-value bg-blue-value)
+                                        fg-red-value fg-green-value fg-blue-value 
+                                        bg-red-value bg-green-value bg-blue-value)
                     (convert-cell-to-character pixel-buffer px py)
                     (declare (type character char-value)
                              (type fixnum fg-red-value fg-green-value fg-blue-value 
                                    bg-red-value bg-green-value bg-blue-value))
-                    (with-terminal-buffer-element terminal-buffer 
-                        (the fixnum (- px xmin)) (the fixnum (- py ymin))
+                    (with-terminal-buffer-element terminal-buffer px py
                       (setf char char-value 
                             fg-red fg-red-value fg-green fg-green-value fg-blue fg-blue-value
                             bg-red bg-red-value bg-green bg-green-value bg-blue bg-blue-value))))))))
@@ -279,7 +278,7 @@
 ;;; PARALLEL PROCESSING OF A TERMINAL BUFFER
 
 (defmacro with-parallel-terminal-buffer-processing (buffer &body body)
-  (alexandria:with-gensyms (number-of-threads prod1 prod2 prod threads thread-i)
+  (alexandria:with-gensyms (number-of-threads prod1 prod2 threads thread-i)
     `(with-terminal-buffer-size ,buffer
        (let* ((,number-of-threads #.(cl-cpus:get-number-of-processors))
               (,threads (make-array (1- ,number-of-threads) :element-type '(or null bt:thread)
@@ -294,11 +293,18 @@
              (setf (svref ,threads ,thread-i) (bt:make-thread #'(lambda () ,@body)))))
          (prog1
            (let* ((tb-xmin 0) (tb-xmax tb-size-x)
-                  (,prod (the fixnum (* (1- ,number-of-threads) tb-size-y)))
-                  (tb-ymin (the fixnum (floor ,prod ,number-of-threads))) 
+                  (,prod1 (the fixnum (* (1- ,number-of-threads) tb-size-y)))
+                  (tb-ymin (the fixnum (floor ,prod1 ,number-of-threads))) 
                   (tb-ymax tb-size-y))
              ,@body)
-           (dotimes (,thread-i ,number-of-threads)
+           (dotimes (,thread-i (1- ,number-of-threads))
              (declare (type fixnum ,thread-i))
              (bt:join-thread (svref ,threads ,thread-i))))))))
+
+(defun convert-pixels-to-text/parallel (pixel-buffer terminal-buffer)
+  (declare (optimize (speed 3) (safety 0))
+           (type (simple-array fixnum (* * 3)) pixel-buffer)
+           (type terminal-buffer terminal-buffer))
+  (with-parallel-terminal-buffer-processing terminal-buffer
+    (convert-pixels-to-text pixel-buffer terminal-buffer tb-xmin tb-ymin tb-xmax tb-ymax)))
 

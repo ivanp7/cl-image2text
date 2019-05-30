@@ -9,6 +9,6 @@
   :components ((:file "package") 
                (:file "buffers" :depends-on ("package"))
                (:file "algorithm" :depends-on ("buffers"))
-               (:file "io" :depends-on ("package"))
+               (:file "io" :depends-on ("buffers"))
                (:file "image2text" :depends-on ("io" "algorithm"))))
 

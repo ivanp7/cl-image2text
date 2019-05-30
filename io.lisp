@@ -2,16 +2,17 @@
 
 (in-package #:cl-image2text)
 
-(defun read-image (filename)
+(defun read-image (filename &key x y)
   (let ((img (opticl:read-image-file filename)))
     (opticl:with-image-bounds (height width) img
-      (let* ((size-x (floor width +horz-ppc+)) (size-y (floor height +vert-ppc+))
-             (size-px (* size-x +horz-ppc+)) (size-py (* size-y +vert-ppc+)) 
-             (pixel-buffer (create-color-buffer size-px size-py)))
-        (dotimes (x size-px)
-          (dotimes (y size-py)
-            (with-color-buffer-element-colors px pixel-buffer x y
-              (multiple-value-bind (r g b) (opticl:pixel img y x)
+      (when (or x y)
+        (setf width (or x width) height (or y height)
+              img (opticl:resize-image img height width :interpolate :bilinear)))
+      (let* ((pixel-buffer (create-color-buffer width height)))
+        (dotimes (j width)
+          (dotimes (i height)
+            (with-color-buffer-element-colors px pixel-buffer j i
+              (multiple-value-bind (r g b) (opticl:pixel img i j)
                 (setf px-red r px-green g px-blue b)))))
         pixel-buffer))))
 
