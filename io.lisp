@@ -3,18 +3,13 @@
 (in-package #:cl-image2text)
 
 (defun read-image (filename &key x y)
-  (let ((img (opticl:read-image-file filename)))
-    (opticl:with-image-bounds (height width) img
-      (when (or x y)
-        (setf width (or x width) height (or y height)
-              img (opticl:resize-image img height width :interpolate :bilinear)))
-      (let* ((pixel-buffer (create-color-buffer width height)))
-        (dotimes (j width)
-          (dotimes (i height)
-            (with-color-buffer-element-colors px pixel-buffer j i
-              (multiple-value-bind (r g b) (opticl:pixel img i j)
-                (setf px-red r px-green g px-blue b)))))
-        pixel-buffer))))
+  (let ((img (opticl:coerce-image (opticl:read-image-file filename)
+                                  +pixel-buffer-type+ :preserve-luminance t)))
+    (when (or x y)
+      (opticl:with-image-bounds (height width) img
+        (let ((width (or x width)) (height (or y height)))
+          (setf img (opticl:resize-image img height width :interpolate :bilinear)))))
+    img))
 
 (defparameter *color-change-tolerance* 0)
 
@@ -46,7 +41,7 @@
          (write-char #\; ,stream)
          (write-string (aref byte-to-string ,blue) ,stream)
          (write-char #\m ,stream))))
-      (with-terminal-buffer-size terminal-buffer
+      (with-terminal-buffer-size (tb-size-x tb-size-y) terminal-buffer
         (let ((ymax (or ymax tb-size-y)) (xmax (or xmax tb-size-x))
               last-fg-red last-fg-green last-fg-blue last-bg-red last-bg-green last-bg-blue) 
           (declare (type fixnum ymin ymax xmin xmax))

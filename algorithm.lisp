@@ -37,15 +37,15 @@
                 (setf red-symbols (cons red red-symbols)
                       green-symbols (cons green green-symbols)
                       blue-symbols (cons blue blue-symbols)
-                      bindings (list* `(,blue (color-buffer-element-color 
+                      bindings (list* `(,blue (pixel-buffer-color 
                                                 blue ,pixel-buffer
                                                 (the fixnum (+ ,x0 ,x)) 
                                                 (the fixnum (+ ,y0 ,y))))
-                                      `(,green (color-buffer-element-color 
+                                      `(,green (pixel-buffer-color 
                                                  green ,pixel-buffer
                                                  (the fixnum (+ ,x0 ,x))
                                                  (the fixnum (+ ,y0 ,y))))
-                                      `(,red (color-buffer-element-color 
+                                      `(,red (pixel-buffer-color 
                                                red ,pixel-buffer
                                                (the fixnum (+ ,x0 ,x))
                                                (the fixnum (+ ,y0 ,y))))
@@ -241,7 +241,7 @@
 
 (defun convert-cell-to-character (pixel-buffer px py)
   (declare (optimize (speed 3) (safety 0))
-           (type (simple-array fixnum (* * 3)) pixel-buffer)
+           (type pixel-buffer pixel-buffer)
            (type fixnum px py))
   ;; Numeration of cell pixels:
   ;; 0 1
@@ -253,58 +253,62 @@
                   (#\▂ (6 7)) (#\▄ (4 5 6 7)) (#\▆ (2 3 4 5 6 7)) (#\▌ (0 2 4 6)))
     pixel-buffer px py))
 
-(defun convert-pixels-to-text (pixel-buffer terminal-buffer &optional xmin ymin xmax ymax)
+(defun convert-pixels/single-thread (pixel-buffer terminal-buffer &optional pmin pmax)
   (declare (optimize (speed 3) (safety 0))
-           (type (simple-array fixnum (* * 3)) pixel-buffer)
+           (type pixel-buffer pixel-buffer)
            (type terminal-buffer terminal-buffer)
-           (type (or fixnum null) ymin ymax xmin xmax))
-  (with-terminal-buffer-size terminal-buffer
-    (let ((xmin (or xmin 0)) (ymin (or ymin 0)) 
-          (xmax (or xmax tb-size-x)) (ymax (or ymax tb-size-y)))
-      (loop :for py :of-type fixnum :from ymin :below ymax :do
-            (loop :for px :of-type fixnum :from xmin :below xmax :do
-                  (multiple-value-bind (char-value 
-                                        fg-red-value fg-green-value fg-blue-value 
-                                        bg-red-value bg-green-value bg-blue-value)
-                    (convert-cell-to-character pixel-buffer px py)
-                    (declare (type character char-value)
-                             (type fixnum fg-red-value fg-green-value fg-blue-value 
-                                   bg-red-value bg-green-value bg-blue-value))
-                    (with-terminal-buffer-element terminal-buffer px py
-                      (setf char char-value 
-                            fg-red fg-red-value fg-green fg-green-value fg-blue fg-blue-value
-                            bg-red bg-red-value bg-green bg-green-value bg-blue bg-blue-value))))))))
+           (type (or fixnum null) pmin pmax))
+  (with-terminal-buffer-size (tb-size-x tb-size-y) terminal-buffer
+    (let ((pmin (or pmin 0)) (pmax (or pmax (the fixnum (* tb-size-x tb-size-y)))))
+      (loop :for p :of-type fixnum :from pmin :below pmax :do
+            (let* ((py (the fixnum (floor p tb-size-x)))
+                   (px (the fixnum (mod p tb-size-x))))
+              (multiple-value-bind (char-value 
+                                    fg-red-value fg-green-value fg-blue-value 
+                                    bg-red-value bg-green-value bg-blue-value)
+                (convert-cell-to-character pixel-buffer px py)
+                (declare (type character char-value)
+                         (type fixnum fg-red-value fg-green-value fg-blue-value 
+                               bg-red-value bg-green-value bg-blue-value))
+                (with-terminal-buffer-element terminal-buffer px py
+                  (setf char char-value 
+                        fg-red fg-red-value fg-green fg-green-value fg-blue fg-blue-value
+                        bg-red bg-red-value bg-green bg-green-value bg-blue bg-blue-value))))))))
 
 ;;; PARALLEL PROCESSING OF A TERMINAL BUFFER
 
-(defmacro with-parallel-terminal-buffer-processing (buffer &body body)
-  (alexandria:with-gensyms (number-of-threads prod1 prod2 threads thread-i)
-    `(with-terminal-buffer-size ,buffer
-       (let* ((,number-of-threads #.(cl-cpus:get-number-of-processors))
-              (,threads (make-array (1- ,number-of-threads) :element-type '(or null bt:thread)
-                                   :initial-element nil)))
-         (dotimes (,thread-i (1- ,number-of-threads))
-           (declare (type fixnum ,thread-i))
-           (let* ((tb-xmin 0) (tb-xmax tb-size-x)
-                  (,prod1 (the fixnum (* ,thread-i tb-size-y)))
-                  (tb-ymin (the fixnum (floor ,prod1 ,number-of-threads)))
-                  (,prod2 (the fixnum (+ ,prod1 tb-size-y)))
-                  (tb-ymax (the fixnum (floor ,prod2 ,number-of-threads))))
-             (setf (svref ,threads ,thread-i) (bt:make-thread #'(lambda () ,@body)))))
-         (prog1
-           (let* ((tb-xmin 0) (tb-xmax tb-size-x)
-                  (,prod1 (the fixnum (* (1- ,number-of-threads) tb-size-y)))
-                  (tb-ymin (the fixnum (floor ,prod1 ,number-of-threads))) 
-                  (tb-ymax tb-size-y))
-             ,@body)
-           (dotimes (,thread-i (1- ,number-of-threads))
-             (declare (type fixnum ,thread-i))
-             (bt:join-thread (svref ,threads ,thread-i))))))))
-
-(defun convert-pixels-to-text/parallel (pixel-buffer terminal-buffer)
+(defun convert-pixels (pixel-buffer terminal-buffer)
   (declare (optimize (speed 3) (safety 0))
-           (type (simple-array fixnum (* * 3)) pixel-buffer)
+           (type pixel-buffer pixel-buffer)
            (type terminal-buffer terminal-buffer))
-  (with-parallel-terminal-buffer-processing terminal-buffer
-    (convert-pixels-to-text pixel-buffer terminal-buffer tb-xmin tb-ymin tb-xmax tb-ymax)))
+  (with-terminal-buffer-size (tb-size-x tb-size-y) terminal-buffer
+    (let* ((number-of-threads #.(cl-cpus:get-number-of-processors))
+           (threads (make-array (1- number-of-threads) :element-type '(or null bt:thread)
+                                :initial-element nil))
+           (tb-size (the fixnum (* tb-size-x tb-size-y))))
+      (dotimes (thread-i (1- number-of-threads))
+        (declare (type fixnum thread-i))
+        (let* ((prod1 (the fixnum (* thread-i tb-size)))
+               (pmin (the fixnum (floor prod1 number-of-threads)))
+               (prod2 (the fixnum (+ prod1 tb-size)))
+               (pmax (the fixnum (floor prod2 number-of-threads))))
+          (setf (svref threads thread-i) 
+                (bt:make-thread 
+                  #'(lambda () 
+                      (convert-pixels/single-thread pixel-buffer terminal-buffer pmin pmax))))))
+      (prog1
+        (let* ((prod1 (the fixnum (* (1- number-of-threads) tb-size)))
+               (pmin (the fixnum (floor prod1 number-of-threads))) 
+               (pmax tb-size))
+          (convert-pixels/single-thread pixel-buffer terminal-buffer pmin pmax))
+        (dotimes (thread-i (1- number-of-threads))
+          (declare (type fixnum thread-i))
+          (bt:join-thread (svref threads thread-i)))))))
+
+(defun convert-image-to-text (pixel-buffer)
+  (with-pixel-buffer-size (px py) pixel-buffer
+    (let ((terminal-buffer (create-terminal-buffer (floor px +horz-ppc+)
+                                                   (floor py +vert-ppc+))))
+      (convert-pixels pixel-buffer terminal-buffer)
+      terminal-buffer)))
 

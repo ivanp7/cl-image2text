@@ -2,11 +2,12 @@
 
 (defpackage #:cl-image2text
   (:use #:cl)
-  (:export :create-color-buffer :with-color-buffer-size 
-           :color-buffer-element-color :with-color-buffer-element-colors
-           :create-terminal-buffer :with-terminal-buffer-size :tb-size-x :tb-size-y 
+  (:export :create-pixel-buffer :with-pixel-buffer-size 
+           :pixel-buffer-color :with-pixel-buffer-colors
+           :create-terminal-buffer :with-terminal-buffer-size
            :with-terminal-buffer-element :char :fg-red :fg-green :fg-blue :bg-red :bg-green :bg-blue
-           :+horz-ppc+ :+vert-ppc+ :convert-pixels-to-text :with-parallel-terminal-buffer-processing
-           :*color-change-tolerance* :write-terminal-buffer
-           :read-image :print-image-as-text))
+           :+horz-ppc+ :+vert-ppc+ 
+           :convert-pixels/single-thread :convert-pixels :convert-image-to-text
+           :read-image :*color-change-tolerance* :write-terminal-buffer
+           :read-convert-output))
 

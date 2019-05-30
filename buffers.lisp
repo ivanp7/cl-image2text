@@ -4,25 +4,23 @@
 
 ;;; COLOR BUFFER
 
-(defun create-color-buffer (x y)
-  (make-array `(,y ,x 3) :element-type 'fixnum :initial-element 0))
+(deftype pixel-buffer () 'opticl:8-bit-rgb-image)
+(defconstant +pixel-buffer-type+ 'opticl:8-bit-rgb-image)
 
-(defmacro with-color-buffer-size (var-prefix buffer &body body)
-  (let* ((prefixstr (symbol-name var-prefix)) 
-         (x (intern (concatenate 'string prefixstr "-SIZE-X")))
-         (y (intern (concatenate 'string prefixstr "-SIZE-Y")))) 
-    (alexandria:once-only (buffer)
-      `(let ((,x (the fixnum (array-dimension ,buffer 1)))
-             (,y (the fixnum (array-dimension ,buffer 0))))
-         ,@body))))
+(defun create-pixel-buffer (x y)
+  (opticl:make-8-bit-rgb-image y x :initial-element 0))
 
-(defmacro color-buffer-element-color (color buffer x y)
+(defmacro with-pixel-buffer-size ((width height) buffer &body body)
+  `(opticl:with-image-bounds (,height ,width) ,buffer
+     ,@body))
+
+(defmacro pixel-buffer-color (color buffer x y)
   (ecase color
     (red `(the fixnum (aref ,buffer ,y ,x 0)))
     (green `(the fixnum (aref ,buffer ,y ,x 1)))
     (blue `(the fixnum (aref ,buffer ,y ,x 2)))))
 
-(defmacro with-color-buffer-element-colors (var-prefix buffer x y &body body)
+(defmacro with-pixel-buffer-colors (var-prefix buffer x y &body body)
   (let* ((prefixstr (symbol-name var-prefix)) 
          (red (intern (concatenate 'string prefixstr "-RED")))
          (green (intern (concatenate 'string prefixstr "-GREEN")))
@@ -30,11 +28,11 @@
     (alexandria:with-gensyms (bufferg xg yg)
       `(let ((,bufferg ,buffer) (,xg ,x) (,yg ,y))
          (declare (ignorable ,bufferg ,xg ,yg))
-         (symbol-macrolet ((,red (color-buffer-element-color red ,bufferg ,xg ,yg))
-                           (,green (color-buffer-element-color green ,bufferg ,xg ,yg))
-                           (,blue (color-buffer-element-color blue ,bufferg ,xg ,yg)))
-                          (declare (ignorable ,red ,green ,blue))
-                          ,@body)))))
+         (symbol-macrolet ((,red (pixel-buffer-color red ,bufferg ,xg ,yg))
+                           (,green (pixel-buffer-color green ,bufferg ,xg ,yg))
+                           (,blue (pixel-buffer-color blue ,bufferg ,xg ,yg)))
+           (declare (ignorable ,red ,green ,blue))
+           ,@body)))))
 
 (defmacro modify-places (result-type operation (&rest places) (&rest arglists) &environment env)
   (if (/= (length places) (length arglists))
@@ -58,31 +56,29 @@
 
 (defstruct terminal-buffer
   (char-array nil :type (simple-array character (* *)))
-  (fg-color-array nil :type (simple-array fixnum (* * 3)))
-  (bg-color-array nil :type (simple-array fixnum (* * 3))))
+  (fg-color-array nil :type pixel-buffer)
+  (bg-color-array nil :type pixel-buffer))
 
 (defun create-terminal-buffer (x y)
   (make-terminal-buffer 
     :char-array (make-array `(,y ,x) :element-type 'character :initial-element #\Space)
-    :fg-color-array (create-color-buffer x y)
-    :bg-color-array (create-color-buffer x y)))
+    :fg-color-array (create-pixel-buffer x y)
+    :bg-color-array (create-pixel-buffer x y)))
 
-(defmacro with-terminal-buffer-size (terminal-buffer &body body)
-  `(with-color-buffer-size tb (terminal-buffer-fg-color-array ,terminal-buffer)
+(defmacro with-terminal-buffer-size ((width height) terminal-buffer &body body)
+  `(with-pixel-buffer-size (,width ,height) (terminal-buffer-fg-color-array ,terminal-buffer)
      ,@body))
 
 (defmacro with-terminal-buffer-element (terminal-buffer x y &body body)
   (alexandria:once-only (terminal-buffer x y) 
     (alexandria:with-gensyms (fg-col-buf bg-col-buf char-buf)
-      `(let ((,fg-col-buf (the (simple-array fixnum (* * 3))
-                               (terminal-buffer-fg-color-array ,terminal-buffer)))
-             (,bg-col-buf (the (simple-array fixnum (* * 3))
-                               (terminal-buffer-bg-color-array ,terminal-buffer)))
+      `(let ((,fg-col-buf (the pixel-buffer (terminal-buffer-fg-color-array ,terminal-buffer)))
+             (,bg-col-buf (the pixel-buffer (terminal-buffer-bg-color-array ,terminal-buffer)))
              (,char-buf (the (simple-array character (* *))
                              (terminal-buffer-char-array ,terminal-buffer)))) 
          (declare (ignorable ,char-buf))
-         (with-color-buffer-element-colors fg ,fg-col-buf ,x ,y
-           (with-color-buffer-element-colors bg ,bg-col-buf ,x ,y
+         (with-pixel-buffer-colors fg ,fg-col-buf ,x ,y
+           (with-pixel-buffer-colors bg ,bg-col-buf ,x ,y
              (symbol-macrolet ((char (aref ,char-buf ,y ,x)))
                (declare (ignorable char))
                ,@body)))))))
