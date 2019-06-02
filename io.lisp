@@ -2,14 +2,22 @@
 
 (in-package #:cl-image2text)
 
-(defun read-image (filename &key x y)
-  (let ((img (opticl:coerce-image (opticl:read-image-file filename)
-                                  +pixel-buffer-type+ :preserve-luminance t)))
-    (when (or x y)
-      (opticl:with-image-bounds (height width) img
-        (let ((width (if x (* x +horz-ppc+) width)) (height (if y (* y +vert-ppc+) height)))
-          (setf img (opticl:resize-image img height width :interpolate :bilinear)))))
-    img))
+(defun read-image (filename &key x y format)
+  (flet ((process-input (img)
+           (let ((img (opticl:coerce-image img +pixel-buffer-type+ :preserve-luminance t)))
+             (when (or x y)
+               (opticl:with-image-bounds (height width) img
+                 (let ((width (if x (* x +horz-ppc+) width)) 
+                       (height (if y (* y +vert-ppc+) height)))
+                   (setf img (opticl:resize-image img height width :interpolate :bilinear)))))
+             img)))
+    (process-input 
+      (if (string= filename "-")
+        (opticl:read-image-stream *standard-input* format)
+        (if format
+          (with-open-file (stream filename :element-type 'unsigned-byte)
+            (opticl:read-image-stream stream format))
+          (opticl:read-image-file filename))))))
 
 (defparameter *color-change-tolerance* 0)
 

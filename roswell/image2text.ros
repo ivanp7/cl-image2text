@@ -9,8 +9,9 @@ exec ros -Q -L sbcl-bin -m image2text -- $0 "$@"
   (asdf:load-system :cl-image2text)
   (in-package #:cl-image2text))
 
-(defun image2text (filename &key x y stream)
-  (write-text (convert-image-to-text (read-image filename :x x :y y)) :stream stream))
+(defun image2text (filename &key x y input-format output-stream)
+  (write-text (convert-image-to-text (read-image filename :x x :y y :format input-format)) 
+              :stream output-stream))
 
 (defvar *version* 
   (with-open-file 
@@ -23,23 +24,29 @@ exec ros -Q -L sbcl-bin -m image2text -- $0 "$@"
    :description "get program version and usage info"
    :long "help")
   (:name :x-size
-   :description "width of text output"
+   :description "width of output text"
    :short #\w
    :long "width"
    :arg-parser #'parse-integer
-   :meta-var "NUM")
+   :meta-var "NUMBER")
   (:name :y-size
-   :description "height of text output"
+   :description "height of output text"
    :short #\h
    :long "height"
    :arg-parser #'parse-integer
-   :meta-var "NUM"))
+   :meta-var "NUMBER")
+  (:name :format
+   :description "format of input image"
+   :short #\f
+   :long "format"
+   :arg-parser #'(lambda (name) (intern name :keyword))
+   :meta-var "FORMAT"))
 
 (defun show-help ()
   (unix-opts:describe 
     :prefix (format nil "cl-image2text~A~%(C) Ivan Podmazov" 
                     (if *version* (concatenate 'string " v" *version*) ""))
-    :usage-of "image2text" :args "FILE"))
+    :usage-of "image2text" :args "(FILE|-)"))
 
 (defun main (&rest argv)
   (multiple-value-bind (options free-args) (unix-opts:get-opts argv)
@@ -48,6 +55,7 @@ exec ros -Q -L sbcl-bin -m image2text -- $0 "$@"
       (if (rest free-args)
         (format t "Error: too many arguments supplied.")
         (image2text (first free-args) 
-                    :x (getf options :x-size) :y (getf options :y-size))))))
+                    :x (getf options :x-size) :y (getf options :y-size)
+                    :input-format (getf options :format))))))
 
 ;;; vim: set ft=lisp lisp:
