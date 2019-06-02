@@ -16,9 +16,9 @@
 
 (defmacro pixel-buffer-color (color buffer x y)
   (ecase color
-    (red `(the fixnum (aref ,buffer ,y ,x 0)))
-    (green `(the fixnum (aref ,buffer ,y ,x 1)))
-    (blue `(the fixnum (aref ,buffer ,y ,x 2)))))
+    (:red `(the fixnum (aref ,buffer ,y ,x 0)))
+    (:green `(the fixnum (aref ,buffer ,y ,x 1)))
+    (:blue `(the fixnum (aref ,buffer ,y ,x 2)))))
 
 (defmacro with-pixel-buffer-colors (var-prefix buffer x y &body body)
   (let* ((prefixstr (symbol-name var-prefix)) 
@@ -28,9 +28,9 @@
     (alexandria:with-gensyms (bufferg xg yg)
       `(let ((,bufferg ,buffer) (,xg ,x) (,yg ,y))
          (declare (ignorable ,bufferg ,xg ,yg))
-         (symbol-macrolet ((,red (pixel-buffer-color red ,bufferg ,xg ,yg))
-                           (,green (pixel-buffer-color green ,bufferg ,xg ,yg))
-                           (,blue (pixel-buffer-color blue ,bufferg ,xg ,yg)))
+         (symbol-macrolet ((,red (pixel-buffer-color :red ,bufferg ,xg ,yg))
+                           (,green (pixel-buffer-color :green ,bufferg ,xg ,yg))
+                           (,blue (pixel-buffer-color :blue ,bufferg ,xg ,yg)))
            (declare (ignorable ,red ,green ,blue))
            ,@body)))))
 

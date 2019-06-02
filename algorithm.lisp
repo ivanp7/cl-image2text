@@ -38,15 +38,15 @@
                       green-symbols (cons green green-symbols)
                       blue-symbols (cons blue blue-symbols)
                       bindings (list* `(,blue (pixel-buffer-color 
-                                                blue ,pixel-buffer
+                                                :blue ,pixel-buffer
                                                 (the fixnum (+ ,x0 ,x)) 
                                                 (the fixnum (+ ,y0 ,y))))
                                       `(,green (pixel-buffer-color 
-                                                 green ,pixel-buffer
+                                                 :green ,pixel-buffer
                                                  (the fixnum (+ ,x0 ,x))
                                                  (the fixnum (+ ,y0 ,y))))
                                       `(,red (pixel-buffer-color 
-                                               red ,pixel-buffer
+                                               :red ,pixel-buffer
                                                (the fixnum (+ ,x0 ,x))
                                                (the fixnum (+ ,y0 ,y))))
                                       bindings))))))
