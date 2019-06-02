@@ -5,10 +5,9 @@
   :author "Ivan Podmazov <ivanpzv8@gmail.com>"
   :license  "GPLv2"
   :version "0.0.1"
-  :depends-on (#:opticl #:cl-cpus #:bordeaux-threads #:alexandria)
+  :depends-on (#:alexandria #:bordeaux-threads #:cl-cpus #:opticl)
   :components ((:file "package") 
                (:file "buffers" :depends-on ("package"))
                (:file "algorithm" :depends-on ("buffers"))
-               (:file "io" :depends-on ("buffers"))
-               (:file "image2text" :depends-on ("io" "algorithm"))))
+               (:file "io" :depends-on ("buffers"))))
 
