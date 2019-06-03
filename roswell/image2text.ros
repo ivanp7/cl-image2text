@@ -9,53 +9,77 @@ exec ros -Q -L sbcl-bin -m image2text -- $0 "$@"
   (asdf:load-system :cl-image2text)
   (in-package #:cl-image2text))
 
-(defun image2text (filename &key x y input-format output-stream)
-  (write-text (convert-image-to-text (read-image filename :x x :y y :format input-format)) 
-              :stream output-stream))
-
-(defvar *version* 
-  (with-open-file 
-      (stream (merge-pathnames #P"version.sexp" (asdf:system-source-directory :cl-image2text))
-              :if-does-not-exist nil)
-    (when stream (read stream nil))))
-
 (unix-opts:define-opts
   (:name :help
-   :description "get program version and usage info"
+   :description "show usage help"
+   :short #\h
    :long "help")
+  (:name :version
+   :description "show version"
+   :short #\v
+   :long "version")
   (:name :x-size
    :description "width of output text"
-   :short #\w
-   :long "width"
+   :short #\x
+   :long "cols"
    :arg-parser #'parse-integer
    :meta-var "NUMBER")
   (:name :y-size
    :description "height of output text"
-   :short #\h
-   :long "height"
+   :short #\y
+   :long "rows"
    :arg-parser #'parse-integer
    :meta-var "NUMBER")
   (:name :format
-   :description "format of input image"
+   :description "type of input image"
    :short #\f
    :long "format"
    :arg-parser #'(lambda (name) (intern name :keyword))
    :meta-var "FORMAT"))
 
-(defun show-help ()
+(defvar *version* 
+  (with-open-file 
+    (stream (merge-pathnames #P"version.sexp" (asdf:system-source-directory :cl-image2text))
+            :if-does-not-exist nil)
+    (when stream (read stream nil))))
+
+(defun version-string ()
+  (format nil "cl-image2text ~A~%(C) Ivan Podmazov" (if *version* *version* "")))
+
+(defun show-version ()
+  (format t "~A~%" (version-string)))
+
+(defun show-help (&optional prefix)
   (unix-opts:describe 
-    :prefix (format nil "cl-image2text~A~%(C) Ivan Podmazov" 
-                    (if *version* (concatenate 'string " v" *version*) ""))
-    :usage-of "image2text" :args "(FILE|-)"))
+    :prefix (if prefix prefix (version-string)) :usage-of "image2text" :args "[FILE]"
+    :suffix (format nil "~A~%~A~%~%~A~%~{~A~^, ~}" 
+                    "If FILE is omitted, image is read from the standard input then."
+                    "In this case, --format option is mandatory."
+                    "Supported image formats:"
+                    (mapcar #'symbol-name (alexandria:hash-table-keys
+                                            opticl::*image-stream-reader-hash-table*)))))
+
+(defun arg-parse-error (msg)
+  (show-help (format nil "Error: ~A." msg))
+  1)
+
+(defun image2text (filename &key x y input-format output-stream)
+  (write-text (convert-image-to-text (read-image filename :x x :y y :format input-format)) 
+              :stream output-stream))
 
 (defun main (&rest argv)
   (multiple-value-bind (options free-args) (unix-opts:get-opts argv)
-    (if (or (null free-args) (getf options :help))
-      (show-help)
-      (if (rest free-args)
-        (format t "Error: too many arguments supplied.")
-        (image2text (first free-args) 
-                    :x (getf options :x-size) :y (getf options :y-size)
-                    :input-format (getf options :format))))))
+    (cond
+      ((getf options :help) (show-help))
+      ((getf options :version) (show-version))
+      ((rest free-args) 
+       (arg-parse-error "too many arguments supplied"))
+      ((and (or (null free-args) (string= (first free-args) "")) (null (getf options :format)))
+       (arg-parse-error "no image format specified for the standard input stream"))
+      ((or (<= (getf options :x-size) 0) (<= (getf options :y-size) 0))
+       (arg-parse-error "non-positive result size requested"))
+      (t (image2text (first free-args) 
+                     :x (getf options :x-size) :y (getf options :y-size)
+                     :input-format (getf options :format))))))
 
 ;;; vim: set ft=lisp lisp:

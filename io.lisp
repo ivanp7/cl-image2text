@@ -12,7 +12,7 @@
                    (setf img (opticl:resize-image img height width :interpolate :bilinear)))))
              img)))
     (process-input 
-      (if (string= filename "-")
+      (if (or (null filename) (string= filename ""))
         (opticl:read-image-stream *standard-input* format)
         (if format
           (with-open-file (stream filename :element-type 'unsigned-byte)
