@@ -53,7 +53,7 @@ exec ros -Q -L sbcl-bin -m image2text -- $0 "$@"
   (unix-opts:describe 
     :prefix (if prefix prefix (version-string)) :usage-of "image2text" :args "[FILE]"
     :suffix (format nil "~A~%~A~%~%~A~%~{~A~^, ~}" 
-                    "If FILE is omitted, image is read from the standard input then."
+                    "If FILE is omitted, image is read from the standard input."
                     "In this case, --format option is mandatory."
                     "Supported image formats:"
                     (mapcar #'symbol-name (alexandria:hash-table-keys
@@ -69,17 +69,18 @@ exec ros -Q -L sbcl-bin -m image2text -- $0 "$@"
 
 (defun main (&rest argv)
   (multiple-value-bind (options free-args) (unix-opts:get-opts argv)
-    (cond
-      ((getf options :help) (show-help))
-      ((getf options :version) (show-version))
-      ((rest free-args) 
-       (arg-parse-error "too many arguments supplied"))
-      ((and (or (null free-args) (string= (first free-args) "")) (null (getf options :format)))
-       (arg-parse-error "no image format specified for the standard input stream"))
-      ((or (<= (getf options :x-size) 0) (<= (getf options :y-size) 0))
-       (arg-parse-error "non-positive result size requested"))
-      (t (image2text (first free-args) 
-                     :x (getf options :x-size) :y (getf options :y-size)
-                     :input-format (getf options :format))))))
+    (let ((x (getf options :x-size)) (y (getf options :y-size))
+          (fmt (getf options :format)))
+      (cond
+        ((getf options :help) (show-help))
+        ((getf options :version) (show-version))
+        ((rest free-args) 
+         (arg-parse-error "too many arguments supplied"))
+        ((and (or (null free-args) (string= (first free-args) "")) (null fmt))
+         (arg-parse-error "no image format specified for the standard input stream"))
+        ((or (and x (<= x 0)) (and y (<= y 0)))
+         (arg-parse-error "non-positive result size requested"))
+        (t (image2text (first free-args) 
+                       :x x :y y :input-format fmt))))))
 
 ;;; vim: set ft=lisp lisp:
