@@ -2,256 +2,227 @@
 
 (in-package #:cl-image2text)
 
-(defconstant +horz-ppc+ 2) ; pixels per character, x axis
-(defconstant +vert-ppc+ 4) ; pixels per character, y axis
+(defmacro character-designator (char)
+  `(first ,char))
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (defun make-pixel-colors-symbols (i)
-    (let ((red (intern (format nil "RED-~A" i)))
-          (green (intern (format nil "GREEN-~A" i)))
-          (blue (intern (format nil "BLUE-~A" i))))
-      (values red green blue)))
+(defmacro character-itself (char)
+  `(second ,char))
 
-  (defun make-character-colors-symbols (charname)
-    (let ((fg-red (intern (format nil "FG-RED-~A" charname)))
-          (fg-green (intern (format nil "FG-GREEN-~A" charname)))
-          (fg-blue (intern (format nil "FG-BLUE-~A" charname)))
-          (bg-red (intern (format nil "BG-RED-~A" charname)))
-          (bg-green (intern (format nil "BG-GREEN-~A" charname)))
-          (bg-blue (intern (format nil "BG-BLUE-~A" charname))))
-      (values fg-red fg-green fg-blue bg-red bg-green bg-blue)))
-  
-  (defun make-character-score-symbol (charname)
-    (let ((score (intern (format nil "SCORE-~A" charname))))
-      score)))
+(defmacro character-parts (char)
+  `(third ,char))
 
-(defmacro bind-cell-colors (pixel-buffer px py &body body)
-  (alexandria:once-only (pixel-buffer px py)
-    (alexandria:with-gensyms (x0 y0)
-      (let (red-symbols green-symbols blue-symbols bindings)
-        (dotimes (y +vert-ppc+)
-          (dotimes (x +horz-ppc+)
-            (let ((i (+ x (* y +horz-ppc+))))
-              (multiple-value-bind (red green blue)
-                  (make-pixel-colors-symbols i)
-                (setf red-symbols (cons red red-symbols)
-                      green-symbols (cons green green-symbols)
-                      blue-symbols (cons blue blue-symbols)
-                      bindings (list* `(,blue (pixel-buffer-color 
-                                                :blue ,pixel-buffer
-                                                (the fixnum (+ ,x0 ,x)) 
-                                                (the fixnum (+ ,y0 ,y))))
-                                      `(,green (pixel-buffer-color 
-                                                 :green ,pixel-buffer
-                                                 (the fixnum (+ ,x0 ,x))
-                                                 (the fixnum (+ ,y0 ,y))))
-                                      `(,red (pixel-buffer-color 
-                                               :red ,pixel-buffer
-                                               (the fixnum (+ ,x0 ,x))
-                                               (the fixnum (+ ,y0 ,y))))
-                                      bindings))))))
-        `(let ((,x0 (the fixnum (* ,px +horz-ppc+))) 
-               (,y0 (the fixnum (* ,py +vert-ppc+))))
-           (let (,@(reverse bindings))
-             (let ((red-total 0) (green-total 0) (blue-total 0))
-               ,@(mapcar #'(lambda (symb) `(setf red-total (the fixnum (+ red-total ,symb))))
-                         red-symbols)
-               ,@(mapcar #'(lambda (symb) `(setf green-total (the fixnum (+ green-total ,symb))))
-                         green-symbols)
-               ,@(mapcar #'(lambda (symb) `(setf blue-total (the fixnum (+ blue-total ,symb))))
-                         blue-symbols)
-               ,@body)))))))
+(defmacro character-pixels-count (char)
+  `(fourth ,char))
 
-(defmacro bind-blocks ((&rest block-descrs) &body body)
-  (let (fixnum-symbols charname-symbols bindings)
-    (dolist (block-descr block-descrs)
-      (let* ((charname (first block-descr)) (char-value (second block-descr)))
-        (multiple-value-bind (fg-red fg-green fg-blue bg-red bg-green bg-blue)
-            (make-character-colors-symbols charname)
-          (setf charname-symbols (cons charname charname-symbols)
-                fixnum-symbols (list* bg-blue bg-green bg-red
-                                      fg-blue fg-green fg-red
-                                      fixnum-symbols)
-                bindings (list* `(,bg-blue 0) `(,bg-green 0) `(,bg-red 0) 
-                                `(,fg-blue 0) `(,fg-green 0) `(,fg-red 0)
-                                `(,charname ,char-value) bindings)))))
-    `(let (,@(reverse bindings))
-       (declare (type character ,@charname-symbols)
-                (type fixnum ,@fixnum-symbols))
-       ,@body)))
+(defmacro define-conversion (cell-horizontal-size cell-vertical-size cell-characters)
+  (when (or (<= cell-horizontal-size 0) (<= cell-vertical-size 0)
+            (/= (length cell-characters)
+                (length (remove-duplicates cell-characters
+                                           :key #'(lambda (chr) 
+                                                    (character-designator chr)))))
+            (some #'(lambda (chr) 
+                      (find-if #'(lambda (i) 
+                                   (or (minusp i) 
+                                       (>= i (* cell-horizontal-size
+                                                cell-vertical-size))))
+                               (character-parts chr)))
+                  cell-characters))
+    (error "Incorrect image-to-text conversion specification."))
 
-(defmacro calc-block-colors-sum (charname components)
-  (multiple-value-bind (fg-red fg-green fg-blue bg-red bg-green bg-blue)
-      (make-character-colors-symbols charname)
-    (let (exprs)
-      (dolist (component components)
-        (multiple-value-bind (red/a green/a blue/a)
-            (funcall (if (symbolp component) 
-                       #'make-character-colors-symbols
-                       #'make-pixel-colors-symbols) component)
-          (setf exprs (list* `(modify-places fixnum + (,fg-red ,fg-green ,fg-blue)
-                                             (,red/a ,green/a ,blue/a))
-                             exprs))))
-      `(progn
-         ,@(reverse exprs)
-         (modify-places fixnum + (,bg-red ,bg-green ,bg-blue)
-                        (((- red-total ,fg-red)) 
-                         ((- green-total ,fg-green)) 
-                         ((- blue-total ,fg-blue))))))))
+  `(progn
+     (defconstant +horz-ppc+ ,cell-horizontal-size)
+     (defconstant +vert-ppc+ ,cell-vertical-size)
+     (defconstant +ppc+ ,(* cell-horizontal-size cell-vertical-size))
+     (alexandria:define-constant 
+       +characters+ 
+       (quote 
+         ,(let ((cell-characters 
+                  (mapcar #'(lambda (chr)
+                              (list (character-designator chr)
+                                    (character-itself chr)
+                                    (character-parts chr)
+                                    (length (character-parts chr))))
+                          (sort cell-characters #'< 
+                                :key #'(lambda (chr)
+                                         (length (character-parts chr)))))))
+            (labels ((find-subchars (chr lst collected pixels)
+                       (if (null lst)
+                         (let ((ch (assoc (character-designator chr) cell-characters))) 
+                           (when (< (+ (length collected) (length pixels))
+                                    (length (character-parts ch)))
+                             (setf (character-parts ch) (append collected pixels))))
+                         (progn
+                           (find-subchars chr (rest lst) collected pixels)
+                           (when (and (not (eql (character-designator chr) 
+                                                (character-designator (first lst))))
+                                      (subsetp (character-pixels (first lst))
+                                               (character-pixels chr) :test #'eql))
+                             (find-subchars chr (rest lst) (cons (character-designator (first lst))
+                                                                 collected)
+                                            (set-difference pixels (character-pixels (first lst))
+                                                            :test #'eql)))))))
+              (let ((characters (copy-tree cell-characters)))
+                (dolist (chr characters)
+                  (find-subchars chr characters () (character-pixels chr)))))
+            cell-characters)) 
+       :test #'equal)))
 
-(defmacro calc-block-colors-average (charname pixels)
-  (multiple-value-bind (fg-red fg-green fg-blue bg-red bg-green bg-blue)
-      (make-character-colors-symbols charname)
-    `(progn
-       ,(if (zerop pixels)
-          `(modify-places fixnum * (,fg-red ,fg-green ,fg-blue) (0 0 0))
-          `(modify-places fixnum round (,fg-red ,fg-green ,fg-blue)
-                          (,pixels ,pixels ,pixels)))
-       ,(if (= pixels (* +horz-ppc+ +vert-ppc+))
-          `(modify-places fixnum * (,bg-red ,bg-green ,bg-blue) (0 0 0))
-          `(modify-places fixnum round (,bg-red ,bg-green ,bg-blue)
-                          (,(- (* +horz-ppc+ +vert-ppc+) pixels) 
-                           ,(- (* +horz-ppc+ +vert-ppc+) pixels)
-                           ,(- (* +horz-ppc+ +vert-ppc+) pixels)))))))
-
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (defun get-character-score-bindings (charname pixels)
-    (multiple-value-bind (fg-red fg-green fg-blue bg-red bg-green bg-blue)
-        (make-character-colors-symbols charname)
-      (let (delta-bindings delta-sq-bindings score-binding score-exprs delta-sq-symbols
-            (score (intern (format nil "SCORE-~A" charname))))
-        (dotimes (i (* +horz-ppc+ +vert-ppc+))
-          (multiple-value-bind (red green blue) 
-              (make-pixel-colors-symbols i)
-            (let ((delta-red (intern (format nil "DELTA-RED-~A-~A" charname i)))
-                  (delta-red-sq (intern (format nil "DELTA-RED-SQ-~A-~A" charname i)))
-                  (delta-green (intern (format nil "DELTA-GREEN-~A-~A" charname i)))
-                  (delta-green-sq (intern (format nil "DELTA-GREEN-SQ-~A-~A" charname i)))
-                  (delta-blue (intern (format nil "DELTA-BLUE-~A-~A" charname i)))
-                  (delta-blue-sq (intern (format nil "DELTA-BLUE-SQ-~A-~A" charname i))))
-              (setf delta-sq-symbols (list* delta-blue-sq delta-green-sq delta-red-sq 
-                                            delta-sq-symbols)
-                    delta-bindings 
-                    (list* 
-                      `(,delta-blue (the fixnum (- ,blue ,(if (member i pixels)
-                                                            fg-blue bg-blue))))
-                      `(,delta-green (the fixnum (- ,green ,(if (member i pixels)
-                                                              fg-green bg-green))))
-                      `(,delta-red (the fixnum (- ,red ,(if (member i pixels)
-                                                          fg-red bg-red))))
-                      delta-bindings)
-                    delta-sq-bindings 
-                    (list* 
-                      `(,delta-blue-sq (the fixnum (* ,delta-blue ,delta-blue)))
-                      `(,delta-green-sq (the fixnum (* ,delta-green ,delta-green)))
-                      `(,delta-red-sq (the fixnum (* ,delta-red ,delta-red)))
-                      delta-sq-bindings)))))
-        (setf score-binding `(,score 0))
-        (setf score-exprs (mapcar #'(lambda (delta-sq) 
-                                      `(setf ,score (the fixnum (+ ,score ,delta-sq))))
-                                  delta-sq-symbols))
-        (values delta-bindings delta-sq-bindings score-binding score-exprs)))))
-
-(defmacro bind-character-scores ((&rest char-descrs) &body body)
-  (let (delta-bindings delta-sq-bindings scores-bindings scores-exprs)
-    (dolist (char-descr char-descrs)
-      (multiple-value-bind (delta-bindings/c delta-sq-bindings/c score-binding/c score-exprs/c)
-          (get-character-score-bindings (first char-descr) (second char-descr))
-        (setf delta-bindings (nconc delta-bindings/c delta-bindings)
-              delta-sq-bindings (nconc delta-sq-bindings/c delta-sq-bindings)
-              scores-bindings (list* score-binding/c scores-bindings)
-              scores-exprs (nconc score-exprs/c scores-exprs))))
-    `(let (,@(reverse delta-bindings))
-       (let (,@(reverse delta-sq-bindings))
-         (let (,@(reverse scores-bindings))
-           ,@scores-exprs
-           ,@body)))))
-
-(defmacro bind-best-character-and-colors ((&rest charnames) &body body)
-  `(let ((best-score most-positive-fixnum) (best-char #\Space) 
-         (best-fg-red 0) (best-fg-green 0) (best-fg-blue 0)
-         (best-bg-red 0) (best-bg-green 0) (best-bg-blue 0))
-     (declare (type character best-char)
-              (fixnum best-score best-fg-red best-fg-green best-fg-blue
-                      best-bg-red best-bg-green best-bg-blue))
-     ,@(mapcar #'(lambda (charname)
-                   (let ((score (make-character-score-symbol charname)))
-                     (multiple-value-bind (fg-red fg-green fg-blue bg-red bg-green bg-blue) 
-                         (make-character-colors-symbols charname)
-                       `(when (< ,score best-score)
-                          (setf best-score ,score 
-                                best-char ,charname
-                                best-fg-red ,fg-red 
-                                best-fg-green ,fg-green 
-                                best-fg-blue ,fg-blue
-                                best-bg-red ,bg-red 
-                                best-bg-green ,bg-green 
-                                best-bg-blue ,bg-blue)))))
-               charnames)
-     ,@body))
-
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (defun get-block-pixels-sum-list (mappings-sublist)
-    (let (best-sum-list)
-      (labels ((rec (mappings-sublist sum-list)
-                 (if (null mappings-sublist)
-                   (when (or (null best-sum-list)
-                             (< (length sum-list) (length best-sum-list)))
-                     (setf best-sum-list sum-list))
-                   (progn
-                     (rec (rest mappings-sublist) sum-list)
-                     (when (subsetp (first (first mappings-sublist)) sum-list :test #'eql)
-                       (rec (rest mappings-sublist)
-                            (cons (second (first mappings-sublist))
-                                  (set-difference sum-list (first (first mappings-sublist))
-                                                  :test #'eql))))))))
-        (rec (rest mappings-sublist) (first (first mappings-sublist)))
-        best-sum-list))))
-
-(defmacro choose-best-character-and-colors ((&rest char/pixel-mappings) pixel-buffer px py)
-  (let ((char/pixel-mappings 
-          (mapcar #'(lambda (mapping)
-                      (list (second mapping)
-                            (intern (apply #'concatenate 'string "B"
-                                                 (if (null (second mapping))
-                                                   '("+NULL")
-                                                   (mapcar #'(lambda (pixel)
-                                                               (format nil "+~A" pixel))
-                                                           (second mapping)))))
-                            (first mapping)))
-                  (sort char/pixel-mappings #'<
-                        :key #'(lambda (mapping) (length (second mapping)))))))
-    `(bind-cell-colors ,pixel-buffer ,px ,py
-       (bind-blocks (,@(mapcar #'rest char/pixel-mappings))
-         ,@(loop :for mappings-sublist :in (reverse (loop :for ms :on (reverse char/pixel-mappings)
-                                                          :collect ms))
-                 :collect `(calc-block-colors-sum 
-                             ,(second (first mappings-sublist))
-                             ,(get-block-pixels-sum-list mappings-sublist)))
-         ,@(mapcar #'(lambda (mapping) 
-                       `(calc-block-colors-average
-                          ,(second mapping) ,(length (first mapping))))
-                   char/pixel-mappings)
-         (bind-character-scores (,@(mapcar #'(lambda (mapping)
-                                               `(,(second mapping) ,(first mapping)))
-                                           char/pixel-mappings))
-           (bind-best-character-and-colors (,@(mapcar #'second char/pixel-mappings))
-             (values best-char best-fg-red best-fg-green best-fg-blue
-                     best-bg-red best-bg-green best-bg-blue)))))))
-
-(defun convert-cell-to-character (pixel-buffer px py)
-  (declare (optimize (speed 3) (safety 0))
-           (type pixel-buffer pixel-buffer)
-           (type fixnum px py))
+(define-conversion 2 4
   ;; Numeration of cell pixels:
   ;; 0 1
   ;; 2 3
   ;; 4 5
   ;; 6 7
-  (choose-best-character-and-colors
-    ((#\Space ()) (#\▝ (1 3)) (#\▗ (5 7)) (#\▖ (4 6)) (#\▘ (0 2)) (#\▞ (1 3 4 6)) 
-                  (#\▂ (6 7)) (#\▄ (4 5 6 7)) (#\▆ (2 3 4 5 6 7)) (#\▌ (0 2 4 6)))
-    pixel-buffer px py))
+  ((:mono #\Space ())
+   (:qu1 #\▝ (1 3)) (:qu2 #\▗ (5 7)) (:qu3 #\▖ (4 6)) (:qu4 #\▘ (0 2)) (:qu13 #\▞ (1 3 4 6)) 
+   (:lw14 #\▂ (6 7)) (:lw12 #\▄ (4 5 6 7)) (:lw34 #\▆ (2 3 4 5 6 7)) 
+   (:lf12 #\▌ (0 2 4 6))))
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defun total-sum-symbol (color power)
+    (intern (concatenate 'string (symbol-name color) 
+                         (if (= power 2) "-SQ" "") "-SUM")))
+
+  (defun character-sum-symbol (designator color power bg)
+    (intern (concatenate 'string (symbol-name designator) "-"
+                         (symbol-name color) (if (= power 2) "-SQ" "")
+                         "-SUM" (if bg "-BG" "-FG"))))
+
+  (defun character-mean-symbol (designator color bg)
+    (intern (concatenate 'string (symbol-name designator) "-"
+                         (symbol-name color) "-MEAN" (if bg "-BG" "-FG"))))
+
+  (defun character-score-symbol (designator)
+    (intern (concatenate 'string (symbol-name designator) "-SCORE")))
+
+  (defun character-variables-bindings ()
+    (nconc
+      (loop :for chr :in +characters+ :nconc 
+            (nconc 
+              (loop :for color :in '(:red :green :blue) :nconc
+                    (loop :for power :in '(1 2) :nconc
+                          (loop :for bg :in '(nil t) :collect
+                                `(,(character-sum-symbol (character-designator chr)
+                                                         color power bg) 0))))
+              (list `(,(character-score-symbol (character-designator chr)) 0))))
+      (loop :for chr :in +characters+ :nconc 
+            (loop :for color :in '(:red :green :blue) :nconc
+                  (loop :for bg :in '(nil t) :collect
+                        (character-mean-symbol (character-designator chr) color bg))))
+      (loop :for color :in '(:red :green :blue) :nconc
+            (loop :for power :in '(1 2) :collect
+                  `(,(total-sum-symbol color power) 0)))))
+
+  (defun color-access-form (pixel-buffer px py index color power)
+    (let ((form `(pixel-buffer-color 
+                   ,color ,pixel-buffer 
+                   (the fixnum (+ ,px ,(mod index +horz-ppc+)))
+                   (the fixnum (+ ,py ,(floor index +horz-ppc+))))))
+      (if (= power 2)
+        `(let ((value ,form)) (the fixnum (* value value)))
+        form)))
+
+  (defun total-color-sums-calculation (pixel-buffer px py)
+    (list
+      `(dotimes (y ,+vert-ppc+)
+         (dotimes (x ,+horz-ppc+)
+           (let* ((red (pixel-buffer-color :red ,pixel-buffer (+ ,px x) (+ ,py y)))
+                  (red-sq (the fixnum (* red red)))
+                  (green (pixel-buffer-color :green ,pixel-buffer (+ ,px x) (+ ,py y)))
+                  (green-sq (the fixnum (* green green)))
+                  (blue (pixel-buffer-color :blue ,pixel-buffer (+ ,px x) (+ ,py y)))
+                  (blue-sq (the fixnum (* blue blue))))
+             (setf red-sum (the fixnum (+ red-sum red))
+                   red-sq-sum (the fixnum (+ red-sq-sum red-sq))
+                   green-sum (the fixnum (+ green-sum green))
+                   green-sq-sum (the fixnum (+ green-sq-sum green-sq))
+                   blue-sum (the fixnum (+ blue-sum blue))
+                   blue-sq-sum (the fixnum (+ blue-sq-sum blue-sq))))))))
+
+  (defun character-color-sums-calculation (pixel-buffer px py designator color power)
+    (let ((sym (character-sum-symbol designator color power nil))) 
+      (nconc (loop :for part :in (character-parts (assoc designator +characters+))
+                   :collect `(setf ,sym 
+                                   (the fixnum 
+                                        (+ ,sym
+                                           ,(if (integerp part)
+                                              (color-access-form pixel-buffer px py part color power)
+                                              (character-sum-symbol part color power nil))))))
+             (list `(setf ,(character-sum-symbol designator color power t)
+                          (the fixnum (- ,(total-sum-symbol color power) ,sym)))))))
+
+  (defun character-scores-calculation (pixel-buffer px py)
+    (loop :for chr :in +characters+ :nconc 
+          (let ((designator (character-designator chr))) 
+            (loop :for color :in '(:red :green :blue) :nconc
+                  (nconc
+                    (loop :for power :in '(1 2) :nconc
+                          (character-color-sums-calculation pixel-buffer px py designator color power))
+                    (list 
+                      `(setf ,(character-mean-symbol designator color nil)
+                             (the fixnum ,(if (zerop (character-pixels-count chr)) 0
+                                            `(floor ,(character-sum-symbol designator color 1 nil)
+                                                    ,(character-pixels-count chr))))
+                             ,(character-mean-symbol designator color t)
+                             (the fixnum ,(if (= (character-pixels-count chr) +ppc+) 0
+                                            `(floor ,(character-sum-symbol designator color 1 t)
+                                                    ,(- +ppc+ (character-pixels-count chr)))))
+                             ,(character-score-symbol designator)
+                             (let* ((sum-sq-fg 
+                                      (the fixnum 
+                                           (* ,(character-sum-symbol designator color 1 nil)
+                                              ,(character-mean-symbol designator color nil))))
+                                    (sum-sq-bg 
+                                      (the fixnum 
+                                           (* ,(character-sum-symbol designator color 1 t)
+                                              ,(character-mean-symbol designator color t))))
+                                    (score-delta-fg 
+                                      (the fixnum 
+                                           (- ,(character-sum-symbol designator color 2 nil)
+                                              sum-sq-fg)))
+                                    (score-delta-bg 
+                                      (the fixnum 
+                                           (- ,(character-sum-symbol designator color 2 t)
+                                              sum-sq-bg)))
+                                    (score-delta (the fixnum (+ score-delta-fg score-delta-bg))))
+                               (the fixnum (+ ,(character-score-symbol designator) score-delta))))))))))
+
+  (defun character-scores-comparison ()
+    (list
+      `(let ((best-score most-positive-fixnum))
+         ,@(loop :for chr :in +characters+ :collect
+                 `(when (< ,(character-score-symbol (character-designator chr))
+                           best-score)
+                    (setf best-score ,(character-score-symbol (character-designator chr))
+                          best-char ,(character-itself chr)
+                          best-fg-red ,(character-mean-symbol 
+                                         (character-designator chr) :red nil) 
+                          best-fg-green ,(character-mean-symbol 
+                                           (character-designator chr) :green nil) 
+                          best-fg-blue ,(character-mean-symbol 
+                                          (character-designator chr) :blue nil) 
+                          best-bg-red ,(character-mean-symbol 
+                                         (character-designator chr) :red t) 
+                          best-bg-green ,(character-mean-symbol 
+                                           (character-designator chr) :green t) 
+                          best-bg-blue ,(character-mean-symbol 
+                                          (character-designator chr) :blue t)))))))
+
+  (defmacro with-best-character (pixel-buffer px py &body body)
+    `(let (best-char best-fg-red best-fg-green best-fg-blue best-bg-red best-bg-green best-bg-blue)
+       (let (,@(character-variables-bindings))
+         ,@(total-color-sums-calculation pixel-buffer px py)
+         ,@(character-scores-calculation pixel-buffer px py)
+         ,@(character-scores-comparison)
+         ,@body)))
+
+  (defun convert-cell-to-character (pixel-buffer px py)
+    (declare (optimize (speed 3) (safety 0))
+             (type pixel-buffer pixel-buffer)
+             (type fixnum px py))
+    (with-best-character pixel-buffer (the fixnum (* px +horz-ppc+)) (the fixnum (* py +vert-ppc+))
+      (values best-char best-fg-red best-fg-green best-fg-blue
+              best-bg-red best-bg-green best-bg-blue))))
 
 (defun convert-pixels/single-thread (pixel-buffer terminal-buffer &optional pmin pmax)
   (declare (optimize (speed 3) (safety 0))
