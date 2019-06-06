@@ -2,107 +2,6 @@
 
 (in-package #:cl-image2text)
 
-(defmacro character-designator (char)
-  `(first ,char))
-
-(defmacro character-itself (char)
-  `(second ,char))
-
-(defmacro character-parts (char)
-  `(third ,char))
-
-(defmacro character-pixels-count (char)
-  `(fourth ,char))
-
-(defmacro define-conversion (cell-horizontal-size cell-vertical-size cell-characters)
-  (when (or (<= cell-horizontal-size 0) (<= cell-vertical-size 0)
-            (/= (length cell-characters)
-                (length (remove-duplicates cell-characters
-                                           :key #'(lambda (chr) 
-                                                    (character-designator chr)))))
-            (some #'(lambda (chr) 
-                      (find-if #'(lambda (i) 
-                                   (or (minusp i) 
-                                       (>= i (* cell-horizontal-size
-                                                cell-vertical-size))))
-                               (character-parts chr)))
-                  cell-characters))
-    (error "Incorrect image-to-text conversion specification."))
-
-  `(progn
-     (defconstant +horz-ppc+ ,cell-horizontal-size)
-     (defconstant +vert-ppc+ ,cell-vertical-size)
-     (defconstant +ppc+ ,(* cell-horizontal-size cell-vertical-size))
-     (alexandria:define-constant 
-       +characters+ 
-       (quote 
-         ,(let ((cell-characters 
-                  (mapcar #'(lambda (chr)
-                              (list (character-designator chr)
-                                    (character-itself chr)
-                                    (character-parts chr)
-                                    (length (character-parts chr))))
-                          (sort cell-characters #'< 
-                                :key #'(lambda (chr)
-                                         (length (character-parts chr)))))))
-            (labels ((find-subchars (chr lst collected pixels)
-                       (if (null lst)
-                         (let ((ch (assoc (character-designator chr) cell-characters))) 
-                           (when (< (+ (length collected) (length pixels))
-                                    (length (character-parts ch)))
-                             (setf (character-parts ch) (append collected pixels))))
-                         (progn
-                           (find-subchars chr (rest lst) collected pixels)
-                           (when (and (not (eql (character-designator chr) 
-                                                (character-designator (first lst))))
-                                      (subsetp (character-pixels (first lst))
-                                               (character-pixels chr) :test #'eql))
-                             (find-subchars chr (rest lst) (cons (character-designator (first lst))
-                                                                 collected)
-                                            (set-difference pixels (character-pixels (first lst))
-                                                            :test #'eql)))))))
-              (let ((characters (copy-tree cell-characters)))
-                (dolist (chr characters)
-                  (find-subchars chr characters () (character-pixels chr)))))
-            cell-characters)) 
-       :test #'equal)))
-
-; (define-conversion 2 4
-;   ;; Numeration of cell pixels:
-;   ;; 0 1
-;   ;; 2 3
-;   ;; 4 5
-;   ;; 6 7
-;   ((:mono #\Space ())
-;    (:qu1 #\▝ (1 3)) (:qu2 #\▗ (5 7)) (:qu3 #\▖ (4 6)) (:qu4 #\▘ (0 2)) (:qu13 #\▞ (1 3 4 6)) 
-;    (:lw14 #\▂ (6 7)) (:lw12 #\▄ (4 5 6 7)) (:lw34 #\▆ (2 3 4 5 6 7)) 
-;    (:lf12 #\▌ (0 2 4 6))))
-(define-conversion 4 8
-  ;; Numeration of cell pixels:
-  ;;  0  1  2  3
-  ;;  4  5  6  7
-  ;;  8  9 10 11
-  ;; 12 13 14 15
-  ;; 16 17 18 19
-  ;; 20 21 22 23
-  ;; 24 25 26 27
-  ;; 28 29 30 31
-  #. (let* ((qu1 `(2 3 6 7 10 11 14 15)) (qu2 `(18 19 22 23 26 27 30 31)) 
-            (qu3 `(16 17 20 21 24 25 28 29)) (qu4 `(0 1 4 5 8 9 12 13)) 
-            (qu13 `(,@qu1 ,@qu3)) 
-            (lw18 `(28 29 30 31)) (lw14 `(24 25 26 27 ,@lw18)) 
-            (lw38 `(20 21 22 23 ,@lw14)) (lw12 `(,@qu2 ,@qu3)) 
-            (lw58 `(12 13 14 15 ,@lw12)) (lw34 `(8 9 10 11 ,@lw58))
-            (lw78 `(4 5 6 7 ,@lw34))
-            (lf14 `(0 4 8 12 16 20 24 28)) (lf12 `(,@qu3 ,@qu4))
-            (lf34 `(,@lf12 2 6 10 14 18 22 26 30)))
-       `((:mono #\Space ())
-         (:qu1 #\▝ ,qu1) (:qu2 #\▗ ,qu2) (:qu3 #\▖ ,qu3) (:qu4 #\▘ ,qu4) 
-         (:qu13 #\▞ ,qu13) 
-         (:lw18 #\▁ ,lw18) (:lw14 #\▂ ,lw14) (:lw38 #\▃ ,lw38) (:lw12 #\▄ ,lw12) 
-         (:lw58 #\▅ ,lw58) (:lw34 #\▆ ,lw34) (:lw78 #\▇ ,lw78)
-         (:lf14 #\▎ ,lf14) (:lf12 #\▌ ,lf12) (:lf34 #\▊ ,lf34))))
-
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defun total-sum-symbol (color power)
     (intern (concatenate 'string (symbol-name color) 
@@ -133,7 +32,7 @@
       (loop :for chr :in +characters+ :nconc 
             (loop :for color :in '(:red :green :blue) :nconc
                   (loop :for bg :in '(nil t) :collect
-                        (character-mean-symbol (character-designator chr) color bg))))
+                        `(,(character-mean-symbol (character-designator chr) color bg) 0))))
       (loop :for color :in '(:red :green :blue) :nconc
             (loop :for power :in '(1 2) :collect
                   `(,(total-sum-symbol color power) 0)))))
@@ -183,34 +82,33 @@
                   (nconc
                     (loop :for power :in '(1 2) :nconc
                           (character-color-sums-calculation pixel-buffer px py designator color power))
-                    (list 
-                      `(setf ,(character-mean-symbol designator color nil)
-                             (the fixnum ,(if (zerop (character-pixels-count chr)) 0
-                                            `(floor ,(character-sum-symbol designator color 1 nil)
-                                                    ,(character-pixels-count chr))))
-                             ,(character-mean-symbol designator color t)
-                             (the fixnum ,(if (= (character-pixels-count chr) +ppc+) 0
-                                            `(floor ,(character-sum-symbol designator color 1 t)
-                                                    ,(- +ppc+ (character-pixels-count chr)))))
-                             ,(character-score-symbol designator)
-                             (let* ((sum-sq-fg 
-                                      (the fixnum 
-                                           (* ,(character-sum-symbol designator color 1 nil)
-                                              ,(character-mean-symbol designator color nil))))
-                                    (sum-sq-bg 
-                                      (the fixnum 
-                                           (* ,(character-sum-symbol designator color 1 t)
-                                              ,(character-mean-symbol designator color t))))
-                                    (score-delta-fg 
-                                      (the fixnum 
-                                           (- ,(character-sum-symbol designator color 2 nil)
-                                              sum-sq-fg)))
-                                    (score-delta-bg 
-                                      (the fixnum 
-                                           (- ,(character-sum-symbol designator color 2 t)
-                                              sum-sq-bg)))
-                                    (score-delta (the fixnum (+ score-delta-fg score-delta-bg))))
-                               (the fixnum (+ ,(character-score-symbol designator) score-delta))))))))))
+                    (when (plusp (character-pixels-count chr))
+                      (list `(setf ,(character-mean-symbol designator color nil)
+                                   (the fixnum (floor ,(character-sum-symbol designator color 1 nil)
+                                                      ,(character-pixels-count chr))))))
+                    (when (< (character-pixels-count chr) +ppc+)
+                      (list `(setf ,(character-mean-symbol designator color t)
+                                   (the fixnum (floor ,(character-sum-symbol designator color 1 t)
+                                                      ,(- +ppc+ (character-pixels-count chr)))))))
+                    (list `(setf ,(character-score-symbol designator)
+                                 (let* ((sum-sq-fg 
+                                          (the fixnum 
+                                               (* ,(character-sum-symbol designator color 1 nil)
+                                                  ,(character-mean-symbol designator color nil))))
+                                        (sum-sq-bg 
+                                          (the fixnum 
+                                               (* ,(character-sum-symbol designator color 1 t)
+                                                  ,(character-mean-symbol designator color t))))
+                                        (score-delta-fg 
+                                          (the fixnum 
+                                               (- ,(character-sum-symbol designator color 2 nil)
+                                                  sum-sq-fg)))
+                                        (score-delta-bg 
+                                          (the fixnum 
+                                               (- ,(character-sum-symbol designator color 2 t)
+                                                  sum-sq-bg)))
+                                        (score-delta (the fixnum (+ score-delta-fg score-delta-bg))))
+                                   (the fixnum (+ ,(character-score-symbol designator) score-delta))))))))))
 
   (defun character-scores-comparison ()
     (list

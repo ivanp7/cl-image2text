@@ -6,8 +6,7 @@ exec ros -Q -L sbcl-bin -m image2text -- $0 "$@"
 (progn ;;init forms
   (ros:ensure-asdf)
   #+quicklisp(ql:quickload '(:alexandria :bordeaux-threads :cl-cpus :opticl :unix-opts) :silent t)
-  (asdf:load-system :cl-image2text)
-  (in-package #:cl-image2text))
+  (asdf:load-system :cl-image2text))
 
 (unix-opts:define-opts
   (:name :help
@@ -23,13 +22,13 @@ exec ros -Q -L sbcl-bin -m image2text -- $0 "$@"
    :short #\x
    :long "cols"
    :arg-parser #'parse-integer
-   :meta-var "NUMBER")
+   :meta-var "WIDTH")
   (:name :y-size
    :description "height of output text"
    :short #\y
    :long "rows"
    :arg-parser #'parse-integer
-   :meta-var "NUMBER")
+   :meta-var "HEIGHT")
   (:name :format
    :description "type of input image"
    :short #\f
@@ -63,10 +62,6 @@ exec ros -Q -L sbcl-bin -m image2text -- $0 "$@"
   (show-help (format nil "Error: ~A." msg))
   1)
 
-(defun image2text (filename &key x y input-format output-stream)
-  (write-text (convert-image-to-text (read-image filename :x x :y y :format input-format)) 
-              :stream output-stream))
-
 (defun main (&rest argv)
   (multiple-value-bind (options free-args) (unix-opts:get-opts argv)
     (let ((x (getf options :x-size)) (y (getf options :y-size))
@@ -80,7 +75,11 @@ exec ros -Q -L sbcl-bin -m image2text -- $0 "$@"
          (arg-parse-error "no image format specified for the standard input stream"))
         ((or (and x (<= x 0)) (and y (<= y 0)))
          (arg-parse-error "non-positive result size requested"))
-        (t (image2text (first free-args) 
-                       :x x :y y :input-format fmt))))))
+        (t (cl-image2text:write-text 
+             (cl-image2text:convert-image-to-text 
+               (cl-image2text:read-image (first free-args) 
+                                         :x (* cl-image2text:+horz-ppc+ x) 
+                                         :y (* cl-image2text:+vert-ppc+ y) 
+                                         :format fmt))))))))
 
 ;;; vim: set ft=lisp lisp:

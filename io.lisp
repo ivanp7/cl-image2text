@@ -11,8 +11,8 @@
              (declare (type pixel-buffer img))
              (when (or x y)
                (opticl:with-image-bounds (height width) img
-                 (let ((width (if x (the fixnum (* x +horz-ppc+)) width)) 
-                       (height (if y (the fixnum (* y +vert-ppc+)) height)))
+                 (let ((width (if x x width)) 
+                       (height (if y y height)))
                    (setf img (opticl:resize-image img height width :interpolate :bilinear)))))
              img)))
     (process-input 
