@@ -2,6 +2,7 @@
 
 (in-package #:cl-image2text)
 
+;; Much faster results
 ; (define-conversion 2 4
 ;   ;; Numeration of cell pixels:
 ;   ;; 0 1
@@ -13,6 +14,7 @@
 ;    (:lw14 #\▂ (6 7)) (:lw12 #\▄ (4 5 6 7)) (:lw34 #\▆ (2 3 4 5 6 7)) 
 ;    (:lf12 #\▌ (0 2 4 6))))
 
+;; A little better results, but slower
 (define-conversion 4 8
   ;; Numeration of cell pixels:
   ;;  0  1  2  3

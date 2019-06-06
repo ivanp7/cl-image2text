@@ -43,7 +43,7 @@
                    (the fixnum (+ ,px ,(mod index +horz-ppc+)))
                    (the fixnum (+ ,py ,(floor index +horz-ppc+))))))
       (if (= power 2)
-        `(let ((value ,form)) (the fixnum (* value value)))
+        `(let ((value ,form)) (the color (* value value)))
         form)))
 
   (defun total-color-sums-calculation (pixel-buffer px py)
@@ -51,29 +51,29 @@
       `(dotimes (y ,+vert-ppc+)
          (dotimes (x ,+horz-ppc+)
            (let* ((red (pixel-buffer-color :red ,pixel-buffer (+ ,px x) (+ ,py y)))
-                  (red-sq (the fixnum (* red red)))
+                  (red-sq (the color (* red red)))
                   (green (pixel-buffer-color :green ,pixel-buffer (+ ,px x) (+ ,py y)))
-                  (green-sq (the fixnum (* green green)))
+                  (green-sq (the color (* green green)))
                   (blue (pixel-buffer-color :blue ,pixel-buffer (+ ,px x) (+ ,py y)))
-                  (blue-sq (the fixnum (* blue blue))))
-             (setf red-sum (the fixnum (+ red-sum red))
-                   red-sq-sum (the fixnum (+ red-sq-sum red-sq))
-                   green-sum (the fixnum (+ green-sum green))
-                   green-sq-sum (the fixnum (+ green-sq-sum green-sq))
-                   blue-sum (the fixnum (+ blue-sum blue))
-                   blue-sq-sum (the fixnum (+ blue-sq-sum blue-sq))))))))
+                  (blue-sq (the color (* blue blue))))
+             (setf red-sum (the color (+ red-sum red))
+                   red-sq-sum (the color (+ red-sq-sum red-sq))
+                   green-sum (the color (+ green-sum green))
+                   green-sq-sum (the color (+ green-sq-sum green-sq))
+                   blue-sum (the color (+ blue-sum blue))
+                   blue-sq-sum (the color (+ blue-sq-sum blue-sq))))))))
 
   (defun character-color-sums-calculation (pixel-buffer px py designator color power)
     (let ((sym (character-sum-symbol designator color power nil))) 
       (nconc (loop :for part :in (character-parts (assoc designator +characters+))
                    :collect `(setf ,sym 
-                                   (the fixnum 
+                                   (the color 
                                         (+ ,sym
                                            ,(if (integerp part)
                                               (color-access-form pixel-buffer px py part color power)
                                               (character-sum-symbol part color power nil))))))
              (list `(setf ,(character-sum-symbol designator color power t)
-                          (the fixnum (- ,(total-sum-symbol color power) ,sym)))))))
+                          (the color (- ,(total-sum-symbol color power) ,sym)))))))
 
   (defun character-scores-calculation (pixel-buffer px py)
     (loop :for chr :in +characters+ :nconc 
@@ -84,31 +84,31 @@
                           (character-color-sums-calculation pixel-buffer px py designator color power))
                     (when (plusp (character-pixels-count chr))
                       (list `(setf ,(character-mean-symbol designator color nil)
-                                   (the fixnum (floor ,(character-sum-symbol designator color 1 nil)
-                                                      ,(character-pixels-count chr))))))
+                                   (the color (floor ,(character-sum-symbol designator color 1 nil)
+                                                     ,(character-pixels-count chr))))))
                     (when (< (character-pixels-count chr) +ppc+)
                       (list `(setf ,(character-mean-symbol designator color t)
-                                   (the fixnum (floor ,(character-sum-symbol designator color 1 t)
-                                                      ,(- +ppc+ (character-pixels-count chr)))))))
+                                   (the color (floor ,(character-sum-symbol designator color 1 t)
+                                                     ,(- +ppc+ (character-pixels-count chr)))))))
                     (list `(setf ,(character-score-symbol designator)
                                  (let* ((sum-sq-fg 
-                                          (the fixnum 
+                                          (the color 
                                                (* ,(character-sum-symbol designator color 1 nil)
                                                   ,(character-mean-symbol designator color nil))))
                                         (sum-sq-bg 
-                                          (the fixnum 
+                                          (the color 
                                                (* ,(character-sum-symbol designator color 1 t)
                                                   ,(character-mean-symbol designator color t))))
                                         (score-delta-fg 
-                                          (the fixnum 
+                                          (the color 
                                                (- ,(character-sum-symbol designator color 2 nil)
                                                   sum-sq-fg)))
                                         (score-delta-bg 
-                                          (the fixnum 
+                                          (the color 
                                                (- ,(character-sum-symbol designator color 2 t)
                                                   sum-sq-bg)))
-                                        (score-delta (the fixnum (+ score-delta-fg score-delta-bg))))
-                                   (the fixnum (+ ,(character-score-symbol designator) score-delta))))))))))
+                                        (score-delta (the color (+ score-delta-fg score-delta-bg))))
+                                   (the color (+ ,(character-score-symbol designator) score-delta))))))))))
 
   (defun character-scores-comparison ()
     (list
@@ -162,7 +162,7 @@
                                     bg-red-value bg-green-value bg-blue-value)
                 (convert-cell-to-character pixel-buffer px py)
                 (declare (type character char-value)
-                         (type fixnum fg-red-value fg-green-value fg-blue-value 
+                         (type color fg-red-value fg-green-value fg-blue-value 
                                bg-red-value bg-green-value bg-blue-value))
                 (with-terminal-buffer-element terminal-buffer px py
                   (setf char char-value 

@@ -6,6 +6,7 @@
 
 (deftype pixel-buffer () 'opticl:8-bit-rgb-image)
 (defconstant +pixel-buffer-type+ 'opticl:8-bit-rgb-image)
+(deftype color () '(unsigned-byte 8))
 
 (defun create-pixel-buffer (x y)
   (opticl:make-8-bit-rgb-image y x :initial-element 0))
@@ -16,9 +17,9 @@
 
 (defmacro pixel-buffer-color (color buffer x y)
   (ecase color
-    (:red `(the fixnum (aref ,buffer ,y ,x 0)))
-    (:green `(the fixnum (aref ,buffer ,y ,x 1)))
-    (:blue `(the fixnum (aref ,buffer ,y ,x 2)))))
+    (:red `(the color (aref ,buffer ,y ,x 0)))
+    (:green `(the color (aref ,buffer ,y ,x 1)))
+    (:blue `(the color (aref ,buffer ,y ,x 2)))))
 
 (defmacro with-pixel-buffer-colors (var-prefix buffer x y &body body)
   (let* ((prefixstr (symbol-name var-prefix)) 
