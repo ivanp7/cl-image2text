@@ -59,7 +59,7 @@ exec ros -Q -L sbcl-bin -m image2text -- $0 "$@"
                                             opticl::*image-stream-reader-hash-table*)))))
 
 (defun arg-parse-error (msg)
-  (show-help (format nil "Error: ~A." msg))
+  (show-help (format nil "Arguments parsing error: ~A." msg))
   1)
 
 (defun main (&rest argv)
@@ -74,12 +74,13 @@ exec ros -Q -L sbcl-bin -m image2text -- $0 "$@"
         ((and (or (null free-args) (string= (first free-args) "")) (null fmt))
          (arg-parse-error "no image format specified for the standard input stream"))
         ((or (and x (<= x 0)) (and y (<= y 0)))
-         (arg-parse-error "non-positive result size requested"))
-        (t (cl-image2text:write-text 
-             (cl-image2text:convert-image-to-text 
-               (cl-image2text:read-image (first free-args) 
-                                         :x (* cl-image2text:+horz-ppc+ x) 
-                                         :y (* cl-image2text:+vert-ppc+ y) 
-                                         :format fmt))))))))
+         (arg-parse-error "text width and height must be positive"))
+        (t (handler-case (cl-image2text:write-text 
+                           (cl-image2text:convert-image-to-text 
+                             (cl-image2text:read-image (first free-args) 
+                                                       :x (* cl-image2text:+horz-ppc+ x) 
+                                                       :y (* cl-image2text:+vert-ppc+ y) 
+                                                       :format fmt)))
+             (t (msg) (format t "~A~%" msg) 1)))))))
 
 ;;; vim: set ft=lisp lisp:
