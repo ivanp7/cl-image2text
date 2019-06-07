@@ -43,7 +43,7 @@
                    (the fixnum (+ ,px ,(mod index +horz-ppc+)))
                    (the fixnum (+ ,py ,(floor index +horz-ppc+))))))
       (if (= power 2)
-        `(let ((value ,form)) (the color (* value value)))
+        `(let ((value ,form)) (the score (* value value)))
         form)))
 
   (defun total-color-sums-calculation (pixel-buffer px py)
@@ -51,29 +51,29 @@
       `(dotimes (y ,+vert-ppc+)
          (dotimes (x ,+horz-ppc+)
            (let* ((red (pixel-buffer-color :red ,pixel-buffer (+ ,px x) (+ ,py y)))
-                  (red-sq (the color (* red red)))
+                  (red-sq (the score (* red red)))
                   (green (pixel-buffer-color :green ,pixel-buffer (+ ,px x) (+ ,py y)))
-                  (green-sq (the color (* green green)))
+                  (green-sq (the score (* green green)))
                   (blue (pixel-buffer-color :blue ,pixel-buffer (+ ,px x) (+ ,py y)))
-                  (blue-sq (the color (* blue blue))))
-             (setf red-sum (the color (+ red-sum red))
-                   red-sq-sum (the color (+ red-sq-sum red-sq))
-                   green-sum (the color (+ green-sum green))
-                   green-sq-sum (the color (+ green-sq-sum green-sq))
-                   blue-sum (the color (+ blue-sum blue))
-                   blue-sq-sum (the color (+ blue-sq-sum blue-sq))))))))
+                  (blue-sq (the score (* blue blue))))
+             (setf red-sum (the score (+ red-sum red))
+                   red-sq-sum (the score (+ red-sq-sum red-sq))
+                   green-sum (the score (+ green-sum green))
+                   green-sq-sum (the score (+ green-sq-sum green-sq))
+                   blue-sum (the score (+ blue-sum blue))
+                   blue-sq-sum (the score (+ blue-sq-sum blue-sq))))))))
 
   (defun character-color-sums-calculation (pixel-buffer px py designator color power)
     (let ((sym (character-sum-symbol designator color power nil))) 
       (nconc (loop :for part :in (character-parts (assoc designator +characters+))
                    :collect `(setf ,sym 
-                                   (the color 
+                                   (the score 
                                         (+ ,sym
                                            ,(if (integerp part)
                                               (color-access-form pixel-buffer px py part color power)
                                               (character-sum-symbol part color power nil))))))
              (list `(setf ,(character-sum-symbol designator color power t)
-                          (the color (- ,(total-sum-symbol color power) ,sym)))))))
+                          (the score (- ,(total-sum-symbol color power) ,sym)))))))
 
   (defun character-scores-calculation (pixel-buffer px py)
     (loop :for chr :in +characters+ :nconc 
@@ -92,23 +92,23 @@
                                                      ,(- +ppc+ (character-pixels-count chr)))))))
                     (list `(setf ,(character-score-symbol designator)
                                  (let* ((sum-sq-fg 
-                                          (the color 
+                                          (the score 
                                                (* ,(character-sum-symbol designator color 1 nil)
                                                   ,(character-mean-symbol designator color nil))))
                                         (sum-sq-bg 
-                                          (the color 
+                                          (the score 
                                                (* ,(character-sum-symbol designator color 1 t)
                                                   ,(character-mean-symbol designator color t))))
                                         (score-delta-fg 
-                                          (the color 
+                                          (the score 
                                                (- ,(character-sum-symbol designator color 2 nil)
                                                   sum-sq-fg)))
                                         (score-delta-bg 
-                                          (the color 
+                                          (the score 
                                                (- ,(character-sum-symbol designator color 2 t)
                                                   sum-sq-bg)))
-                                        (score-delta (the color (+ score-delta-fg score-delta-bg))))
-                                   (the color (+ ,(character-score-symbol designator) score-delta))))))))))
+                                        (score-delta (the score (+ score-delta-fg score-delta-bg))))
+                                   (the score (+ ,(character-score-symbol designator) score-delta))))))))))
 
   (defun character-scores-comparison ()
     (list

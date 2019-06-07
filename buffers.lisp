@@ -7,6 +7,7 @@
 (deftype pixel-buffer () 'opticl:8-bit-rgb-image)
 (defconstant +pixel-buffer-type+ 'opticl:8-bit-rgb-image)
 (deftype color () '(unsigned-byte 8))
+(deftype score () '(unsigned-byte 64))
 
 (defun create-pixel-buffer (x y)
   (opticl:make-8-bit-rgb-image y x :initial-element 0))
