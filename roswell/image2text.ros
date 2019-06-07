@@ -4,10 +4,8 @@
 exec ros -Q -L sbcl-bin -m image2text -- $0 "$@"
 |#
 (progn ;;init forms
-  (setf *load-verbose* nil)
-  (setf *load-print* nil)
-  (setf *compile-verbose* nil)
-  (setf *compile-print* nil)
+  (setf *load-verbose* nil *load-print* nil
+        *compile-verbose* nil *compile-print* nil)
   (ros:ensure-asdf)
   #+quicklisp(ql:quickload '(:alexandria :bordeaux-threads :cl-cpus :opticl :unix-opts) :silent t)
   (asdf:load-system :cl-image2text))
@@ -52,7 +50,7 @@ exec ros -Q -L sbcl-bin -m image2text -- $0 "$@"
 (defun show-version ()
   (format t "~A~%" (version-string)))
 
-(defun show-help (&optional prefix)
+(defun show-help (&optional prefix stream)
   (unix-opts:describe 
     :prefix (if prefix prefix (version-string)) :usage-of "image2text" :args "[FILE]"
     :suffix (format nil "~A~%~A~%~%~A~%~{~A~^, ~}" 
@@ -60,14 +58,17 @@ exec ros -Q -L sbcl-bin -m image2text -- $0 "$@"
                     "In this case, --format option is mandatory."
                     "Supported image formats:"
                     (mapcar #'symbol-name (alexandria:hash-table-keys
-                                            opticl::*image-stream-reader-hash-table*)))))
+                                            opticl::*image-stream-reader-hash-table*)))
+    :stream stream))
 
 (defun arg-parse-error (msg)
-  (show-help (format nil "Arguments parsing error: ~A." msg))
+  (show-help (format nil "Arguments parsing error: ~A." msg) *error-output*)
   1)
 
 (defun main (&rest argv)
-  (multiple-value-bind (options free-args) (unix-opts:get-opts argv)
+  (multiple-value-bind (options free-args) 
+      (handler-case (unix-opts:get-opts argv)
+        (t (msg) (return-from main (arg-parse-error msg))))
     (let ((x (getf options :x-size)) (y (getf options :y-size))
           (fmt (getf options :format)))
       (cond
@@ -85,6 +86,6 @@ exec ros -Q -L sbcl-bin -m image2text -- $0 "$@"
                                                        :x (* cl-image2text:+horz-ppc+ x) 
                                                        :y (* cl-image2text:+vert-ppc+ y) 
                                                        :format fmt)))
-             (t (msg) (format t "~A~%" msg) 1)))))))
+             (t (msg) (format *error-output* "~A~%" msg) 1)))))))
 
 ;;; vim: set ft=lisp lisp:
