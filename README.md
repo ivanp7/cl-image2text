@@ -37,6 +37,11 @@ For usage help, run
 $ ros exec image2text --help
 ```
 
+## Advanced usage
+
+Modify `conversion.lisp` to change the set of characters, used for convertion.
+See `define-conversion` documentation for details.
+
 ## Author
 
 Ivan Podmazov (ivanpzv8@gmail.com)

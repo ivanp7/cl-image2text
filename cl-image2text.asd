@@ -6,7 +6,12 @@
   :license  "GPLv2"
   :version "0.0.1"
   :depends-on (#:alexandria #:bordeaux-threads #:cl-cpus #:opticl)
-  :components ((:file "package") 
+  :components ((:static-file "README.md")
+               (:static-file "lisplogo_fancy_256.png" 
+                             :depends-on ("README.md"))
+               (:static-file "LICENSE")
+               (:static-file "roswell/image2text.ros")
+               (:file "package") 
                (:file "buffers" :depends-on ("package"))
                (:file "io" :depends-on ("buffers"))
                (:file "constants" :depends-on ("package"))
