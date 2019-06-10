@@ -1,9 +1,39 @@
 # cl-image2text
-### _Ivan Podmazov <ivanpzv8@gmail.com>_
 
-An image-to-Unicode block characters converter.
+*image2text* is an image-to-text converter, written in Common Lisp.
+![Alien technology][lisplogo_fancy_256.png]
 
-## License
+## Installation
 
-GNU General Public License v2
+1. Install [Roswell](https://github.com/roswell/roswell) to your system.
+If you use Arch Linux, there is a package `roswell` available in AUR.
+
+2. Install *image2text*:
+```sh
+$ ros install ivanp7/cl-image2text
+```
+
+## Usage
+
+Run program with
+```sh
+$ ros image2text OPTIONS
+```
+
+If you add `$HOME/.roswell/bin` to your `$PATH`, 
+you wouldn't need to call Roswell explicitly:
+```sh
+$ image2text OPTIONS
+```
+
+For usage help, run
+```sh
+$ ros image2text --help
+```
+
+## Author
+
+Ivan Podmazov <ivanpzv8@gmail.com>
+
+## [License](LICENSE)
 
