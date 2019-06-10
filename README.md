@@ -21,7 +21,7 @@ $ ros install ivanp7/cl-image2text
 Run program with
 
 ```sh
-$ ros image2text OPTIONS
+$ ros exec image2text OPTIONS
 ```
 
 If you add `$HOME/.roswell/bin` to your `$PATH`, 
@@ -34,7 +34,7 @@ $ image2text OPTIONS
 For usage help, run
 
 ```sh
-$ ros image2text --help
+$ ros exec image2text --help
 ```
 
 ## Author
