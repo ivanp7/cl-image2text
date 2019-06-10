@@ -7,7 +7,8 @@ exec ros -Q -L sbcl-bin -m image2text -- $0 "$@"
   (setf *load-verbose* nil *load-print* nil
         *compile-verbose* nil *compile-print* nil)
   (ros:ensure-asdf)
-  #+quicklisp(ql:quickload '(:alexandria :bordeaux-threads :cl-cpus :opticl :unix-opts) :silent t)
+  #+quicklisp(ql:quickload '(:alexandria :bordeaux-threads 
+                             :cl-cpus :opticl :unix-opts) :silent t)
   (asdf:load-system :cl-image2text))
 
 (unix-opts:define-opts
@@ -40,25 +41,29 @@ exec ros -Q -L sbcl-bin -m image2text -- $0 "$@"
 
 (defvar *version* 
   (with-open-file 
-    (stream (merge-pathnames #P"version.sexp" (asdf:system-source-directory :cl-image2text))
+    (stream (merge-pathnames #P"version.sexp" 
+                             (asdf:system-source-directory :cl-image2text))
             :if-does-not-exist nil)
     (when stream (read stream nil))))
 
 (defun version-string ()
-  (format nil "cl-image2text ~A~%(C) Ivan Podmazov" (if *version* *version* "")))
+  (format nil "cl-image2text ~A~%(C) Ivan Podmazov" 
+          (if *version* *version* "")))
 
 (defun show-version ()
   (format t "~A~%" (version-string)))
 
 (defun show-help (&optional prefix stream)
   (unix-opts:describe 
-    :prefix (if prefix prefix (version-string)) :usage-of "image2text" :args "[FILE]"
-    :suffix (format nil "~A~%~A~%~%~A~%~{~A~^, ~}" 
-                    "If FILE is omitted, image is read from the standard input."
-                    "In this case, --format option is mandatory."
-                    "Supported image formats:"
-                    (mapcar #'symbol-name (alexandria:hash-table-keys
-                                            opticl::*image-stream-reader-hash-table*)))
+    :prefix (if prefix prefix (version-string)) 
+    :usage-of "image2text" :args "[FILE]"
+    :suffix 
+    (format nil "~A~%~A~%~%~A~%~{~A~^, ~}" 
+            "If FILE is omitted, image is read from the standard input."
+            "In this case, --format option is mandatory."
+            "Supported image formats:"
+            (mapcar #'symbol-name (alexandria:hash-table-keys
+                                    opticl::*image-stream-reader-hash-table*)))
     :stream stream))
 
 (defun arg-parse-error (msg)
@@ -77,15 +82,16 @@ exec ros -Q -L sbcl-bin -m image2text -- $0 "$@"
         ((rest free-args) 
          (arg-parse-error "too many arguments supplied"))
         ((and (or (null free-args) (string= (first free-args) "")) (null fmt))
-         (arg-parse-error "no image format specified for the standard input stream"))
+         (arg-parse-error "no image format specified for the standard input"))
         ((or (and x (<= x 0)) (and y (<= y 0)))
          (arg-parse-error "text width and height must be positive"))
-        (t (handler-case (cl-image2text:write-text 
-                           (cl-image2text:convert-image-to-text 
-                             (cl-image2text:read-image (first free-args) 
-                                                       :x (* cl-image2text:+horz-ppc+ x) 
-                                                       :y (* cl-image2text:+vert-ppc+ y) 
-                                                       :format fmt)))
+        (t (handler-case 
+               (cl-image2text:write-text 
+                 (cl-image2text:convert-image-to-text 
+                   (cl-image2text:read-image (first free-args) 
+                                             :x (* cl-image2text:+horz-ppc+ x) 
+                                             :y (* cl-image2text:+vert-ppc+ y) 
+                                             :format fmt)))
              (t (msg) (format *error-output* "~A~%" msg) 1)))))))
 
 ;;; vim: set ft=lisp lisp:
