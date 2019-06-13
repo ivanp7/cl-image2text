@@ -11,6 +11,10 @@ exec ros -Q -L sbcl-bin -m image2text -- $0 "$@"
                              :cl-cpus :opticl :unix-opts) :silent t)
   (asdf:load-system :cl-image2text))
 
+(defpackage #:ros.script.cl-image2text
+  (:use #:cl))
+(in-package #:ros.script.cl-image2text)
+
 (unix-opts:define-opts
   (:name :help
    :description "show usage help"
