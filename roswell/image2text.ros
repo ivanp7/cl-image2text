@@ -85,8 +85,8 @@ exec ros -Q -L sbcl-bin -m image2text -- $0 "$@"
                (cl-image2text:write-text 
                  (cl-image2text:convert-image-to-text 
                    (cl-image2text:read-image (first free-args) 
-                                             :x (* cl-image2text:+horz-ppc+ x) 
-                                             :y (* cl-image2text:+vert-ppc+ y) 
+                                             :x (when x (* cl-image2text:+horz-ppc+ x)) 
+                                             :y (when y (* cl-image2text:+vert-ppc+ y)) 
                                              :format fmt)))
              (t (msg) (format *error-output* "~A~%" msg) 1)))))))
 
