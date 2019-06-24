@@ -65,9 +65,9 @@
                                    (,operation ,access ,@arglist))))
                     ,set)))))
       `(progn ,@(mapcar #'generate-setf 
-                        (mapcar #'(lambda (place)
-                                    (multiple-value-list 
-                                      (get-setf-expansion place env)))
+                        (mapcar (lambda (place)
+                                  (multiple-value-list 
+                                    (get-setf-expansion place env)))
                                 places)
                         arglists)))))
 
