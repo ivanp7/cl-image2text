@@ -239,9 +239,9 @@
                (pmax (the fixnum (floor prod2 number-of-threads))))
           (setf (svref threads thread-i) 
                 (bt:make-thread 
-                  #'(lambda () 
-                      (convert-pixels/single-thread 
-                        pixel-buffer terminal-buffer pmin pmax))))))
+                  (lambda () 
+                    (convert-pixels/single-thread 
+                      pixel-buffer terminal-buffer pmin pmax))))))
       (prog1
         (let* ((prod1 (the fixnum (* (1- number-of-threads) tb-size)))
                (pmin (the fixnum (floor prod1 number-of-threads))))

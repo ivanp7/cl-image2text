@@ -25,14 +25,14 @@
             (/= (length cell-characters)
                 (length (remove-duplicates 
                           cell-characters
-                          :key #'(lambda (chr) 
-                                   (character-designator chr)))))
-            (some #'(lambda (chr) 
-                      (find-if #'(lambda (i) 
-                                   (or (minusp i) 
-                                       (>= i (* cell-horizontal-size
-                                                cell-vertical-size))))
-                               (character-parts chr)))
+                          :key (lambda (chr) 
+                                 (character-designator chr)))))
+            (some (lambda (chr) 
+                    (find-if (lambda (i) 
+                               (or (minusp i) 
+                                   (>= i (* cell-horizontal-size
+                                            cell-vertical-size))))
+                             (character-parts chr)))
                   cell-characters))
     (error "Incorrect image-to-text conversion specification."))
 
@@ -47,14 +47,14 @@
        +characters+ 
        (quote 
          ,(let* ((cell-characters 
-                   (sort (mapcar #'(lambda (chr)
-                                     (list (character-designator chr)
-                                           (character-itself chr)
-                                           (character-parts chr)
-                                           (length (character-parts chr))))
+                   (sort (mapcar (lambda (chr)
+                                   (list (character-designator chr)
+                                         (character-itself chr)
+                                         (character-parts chr)
+                                         (length (character-parts chr))))
                                  cell-characters)
-                         #'< :key #'(lambda (chr)
-                                      (character-pixels-count chr)))))
+                         #'< :key (lambda (chr)
+                                    (character-pixels-count chr)))))
             (labels ((find-subchars (designator lst collected pixels)
                        (if (null lst)
                          (let ((ch (assoc designator cell-characters))) 

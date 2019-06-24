@@ -33,7 +33,7 @@ exec ros -Q -L sbcl-bin -m image2text -- $0 "$@"
   (:name :format
    :description "type of input image"
    :short #\f :long "format"
-   :arg-parser #'(lambda (name) (intern name :keyword)) :meta-var "FORMAT"))
+   :arg-parser (lambda (name) (intern name :keyword)) :meta-var "FORMAT"))
 
 (defvar *version* 
   (with-open-file 
