@@ -2,10 +2,10 @@
 
 *image2text* is an image-to-text converter, written in Common Lisp.
 
+![Alien technology](pics/lisplogo_fancy_256.png)
+
 Resulting text uses `^[[38;2;R;G;Bm` and `^[[48;2;R;G;Bm` ANSI true color codes
 and Unicode block characters.
-
-![Alien technology](pics/lisplogo_fancy_256.png)
 
 ## Installation
 
