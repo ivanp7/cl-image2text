@@ -5,7 +5,7 @@
 Resulting text uses `^[[38;2;R;G;Bm` and `^[[48;2;R;G;Bm` ANSI true color codes
 and Unicode block characters.
 
-![Alien technology](lisplogo_fancy_256.png)
+![Alien technology](pics/lisplogo_fancy_256.png)
 
 ## Installation
 
@@ -49,7 +49,7 @@ See `define-conversion` documentation for details.
 
 Converting an image
 
-![Example image](example.png)
+![Example image](pics/example.png)
 
 with command
 
@@ -59,7 +59,7 @@ $ ros exec image2text -x 200 -y 60 example.png
 
 gives the following result:
 
-![Example result](example_result.png)
+![Example result](pics/example_result.png)
 
 ## Author
 
