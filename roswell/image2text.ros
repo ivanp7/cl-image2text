@@ -84,10 +84,11 @@ exec ros -Q -L sbcl-bin -m image2text -- $0 "$@"
         (t (handler-case 
                (cl-image2text:write-text 
                  (cl-image2text:convert-image-to-text 
-                   (cl-image2text:read-image (first free-args) 
-                                             :x (when x (* cl-image2text:+horz-ppc+ x)) 
-                                             :y (when y (* cl-image2text:+vert-ppc+ y)) 
-                                             :format fmt)))
+                   (cl-image2text:read-image 
+                     (first free-args) 
+                     :x (when x (* cl-image2text:+horz-ppc+ x)) 
+                     :y (when y (* cl-image2text:+vert-ppc+ y)) 
+                     :format fmt)))
              (t (msg) (format *error-output* "~A~%" msg) 1)))))))
 
 ;;; vim: set ft=lisp lisp:
