@@ -74,9 +74,9 @@
 ;;; TERMINAL BUFFER
 
 (defstruct terminal-buffer
-  (char-array nil :type (simple-array character (* *)))
-  (fg-color-array nil :type pixel-buffer)
-  (bg-color-array nil :type pixel-buffer))
+  (char-array nil :type (simple-array character (* *)) :read-only t)
+  (fg-color-array nil :type pixel-buffer :read-only t)
+  (bg-color-array nil :type pixel-buffer :read-only t))
 
 (defun create-terminal-buffer (x y)
   "Create colored text buffer with the specified dimensions."
