@@ -36,10 +36,9 @@
 (defmacro with-pixel-buffer-colors (var-prefix buffer x y &body body)
   "Invertibly bind pixel RGB components to symbols 
   PREFIX-RED, PREFIX-GREEN, PREFIX-BLUE, and execute BODY."
-  (let* ((prefixstr (symbol-name var-prefix)) 
-         (red (intern (concatenate 'string prefixstr "-RED")))
-         (green (intern (concatenate 'string prefixstr "-GREEN")))
-         (blue (intern (concatenate 'string prefixstr "-BLUE")))) 
+  (let* ((red (alexandria:symbolicate var-prefix "-RED"))
+         (green (alexandria:symbolicate var-prefix "-GREEN"))
+         (blue (alexandria:symbolicate var-prefix "-BLUE"))) 
     (alexandria:with-gensyms (bufferg xg yg)
       `(let ((,bufferg ,buffer) (,xg ,x) (,yg ,y))
          (declare (ignorable ,bufferg ,xg ,yg))

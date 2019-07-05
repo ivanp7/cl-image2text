@@ -4,20 +4,17 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defun total-sum-symbol (color power)
-    (intern (concatenate 'string (symbol-name color) 
-                         (if (= power 2) "-SQ" "") "-SUM")))
+    (alexandria:symbolicate color (if (= power 2) "-SQ" "") "-SUM"))
 
   (defun character-sum-symbol (designator color power bg)
-    (intern (concatenate 'string (symbol-name designator) "-"
-                         (symbol-name color) (if (= power 2) "-SQ" "")
-                         "-SUM" (if bg "-BG" "-FG"))))
+    (alexandria:symbolicate designator "-" color (if (= power 2) "-SQ" "")
+                            "-SUM" (if bg "-BG" "-FG")))
 
   (defun character-mean-symbol (designator color bg)
-    (intern (concatenate 'string (symbol-name designator) "-"
-                         (symbol-name color) "-MEAN" (if bg "-BG" "-FG"))))
+    (alexandria:symbolicate designator "-" color "-MEAN" (if bg "-BG" "-FG")))
 
   (defun character-score-symbol (designator)
-    (intern (concatenate 'string (symbol-name designator) "-SCORE")))
+    (alexandria:symbolicate designator "-SCORE"))
 
   (defun character-variables-bindings ()
     (nconc
