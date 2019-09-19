@@ -28,7 +28,7 @@ $ ros exec image2text OPTIONS
 ```
 
 If you add `$HOME/.roswell/bin` to your `$PATH`, 
-you wouldn't need to call Roswell explicitly:
+you won't need to call Roswell explicitly:
 
 ```sh
 $ image2text OPTIONS
