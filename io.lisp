@@ -17,10 +17,14 @@
              (declare (type pixel-buffer img))
              (when (or x y)
                (opticl:with-image-bounds (height width) img
-                 (let ((width (if x x width)) 
-                       (height (if y y height)))
-                   (setf img (opticl:resize-image img height width 
-                                                  :interpolate :bilinear)))))
+                 (declare (type fixnum width height))
+                 (cond
+                   ((and x (not y))
+                    (setf y (round (the fixnum (* x height)) width)))
+                   ((and y (not x))
+                    (setf x (round (the fixnum (* y width)) height))))
+                 (setf img (opticl:resize-image
+                             img y x :interpolate :bilinear))))
              img)))
     (process-input 
       (if (or (null filename) (string= filename ""))
@@ -34,7 +38,7 @@
   "Color ANSI codes are outputted only if color change distance is greater 
   than the tolerance value.")
 
-(let ((default-linefeed (format nil "~C[0m~%" #\Esc))
+(let ((default-linefeed (format nil "~C~A~%" #\Esc "[0m"))
       (byte-to-string 
         (make-array 256 :element-type 'string
                     :initial-contents

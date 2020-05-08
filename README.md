@@ -42,7 +42,7 @@ $ ros exec image2text --help
 
 ## Advanced usage
 
-Modify `conversion.lisp` to change the set of characters, used for convertion.
+Modify `conversion.lisp` to change the set of characters used for convertion.
 See `define-conversion` documentation for details.
 
 ## Example
@@ -57,7 +57,7 @@ with command
 $ ros exec image2text -x 200 -y 60 example.png
 ```
 
-gives the following result:
+yields the following result:
 
 ![Example result](pics/example_result.png)
 
