@@ -2,7 +2,7 @@
 
 (in-package #:cl-image2text)
 
-(defun read-image (filename &key format x y)
+(defun read-image (filename &key format x y keep-ratio-p)
   "Read image from file (if FILENAME is non-NIL) or standard input.
   Assume input image format is FORMAT (if non-NIL), 
   otherwise derive it from FILENAME.
@@ -19,6 +19,12 @@
                (opticl:with-image-bounds (height width) img
                  (declare (type fixnum width height))
                  (cond
+                   ((and x y keep-ratio-p)
+                    (let ((xheight (the fixnum (* x height)))
+                          (ywidth (the fixnum (* y width))))
+                      (if (>= ywidth xheight)
+                        (setf y (round xheight width))
+                        (setf x (round ywidth height)))))
                    ((and x (not y))
                     (setf y (round (the fixnum (* x height)) width)))
                    ((and y (not x))

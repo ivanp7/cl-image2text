@@ -24,12 +24,15 @@ exec ros -Q -L sbcl-bin -m image2text -- $0 "$@"
    :short #\v :long "version")
   (:name :x-size
    :description "width of output text"
-   :short #\x :long "cols"
+   :short #\x :long "columns"
    :arg-parser #'parse-integer :meta-var "WIDTH")
   (:name :y-size
    :description "height of output text"
    :short #\y :long "rows"
    :arg-parser #'parse-integer :meta-var "HEIGHT")
+  (:name :keep-ratio
+   :description "keep aspect ratio of image"
+   :short #\r :long "keep-ratio")
   (:name :format
    :description "type of input image"
    :short #\f :long "format"
@@ -71,6 +74,7 @@ exec ros -Q -L sbcl-bin -m image2text -- $0 "$@"
       (handler-case (unix-opts:get-opts argv)
         (t (msg) (return-from main (arg-parse-error msg))))
     (let ((x (getf options :x-size)) (y (getf options :y-size))
+          (keep-ratio-p (getf options :keep-ratio)) 
           (fmt (getf options :format)))
       (cond
         ((getf options :help) (show-help))
@@ -88,6 +92,7 @@ exec ros -Q -L sbcl-bin -m image2text -- $0 "$@"
                      (first free-args) 
                      :x (when x (* cl-image2text:+horz-ppc+ x)) 
                      :y (when y (* cl-image2text:+vert-ppc+ y)) 
+                     :keep-ratio-p keep-ratio-p
                      :format fmt)))
              (t (msg) (format *error-output* "~A~%" msg) 1)))))))
 
