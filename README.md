@@ -54,7 +54,7 @@ Converting an image
 with command
 
 ```sh
-$ ros exec image2text -x 200 -y 60 example.png
+$ ros exec image2text -x 319 -y 85 example.png
 ```
 
 yields the following result:
