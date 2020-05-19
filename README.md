@@ -40,22 +40,24 @@ For usage help, run
 $ ros exec image2text --help
 ```
 
-> Usage: image2text [-h|--help] [-v|--version] [-x|--columns WIDTH]
->                   [-y|--rows HEIGHT] [-r|--keep-ratio] [-f|--format FORMAT] [FILE]
-> 
-> Available options:
->   -h, --help               show usage help
->   -v, --version            show version
->   -x, --columns WIDTH      width of output text
->   -y, --rows HEIGHT        height of output text
->   -r, --keep-ratio         keep aspect ratio of image
->   -f, --format FORMAT      type of input image
-> 
-> If FILE is omitted, image is read from the standard input.
-> In this case, --format option is mandatory.
-> 
-> Supported image formats:
-> GIF, PPM, PGM, PBM, PNG, JPG, JPEG, TIF, TIFF
+```
+Usage: image2text [-h|--help] [-v|--version] [-x|--columns WIDTH]
+                  [-y|--rows HEIGHT] [-r|--keep-ratio] [-f|--format FORMAT] [FILE]
+
+Available options:
+  -h, --help               show usage help
+  -v, --version            show version
+  -x, --columns WIDTH      width of output text
+  -y, --rows HEIGHT        height of output text
+  -r, --keep-ratio         keep aspect ratio of image
+  -f, --format FORMAT      type of input image
+
+If FILE is omitted, image is read from the standard input.
+In this case, --format option is mandatory.
+
+Supported image formats:
+GIF, PPM, PGM, PBM, PNG, JPG, JPEG, TIF, TIFF
+```
 
 ## Advanced usage
 
