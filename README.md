@@ -76,7 +76,7 @@ with command
 $ ros exec image2text -x 319 -y 85 -r example.png
 ```
 
-yields the following result:
+and 2x4 `braille` conversion yields the following result:
 
 ![Example result](pics/example_result.png)
 

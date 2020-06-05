@@ -14,13 +14,14 @@
 (defmacro character-pixels-count (char)
   `(fourth ,char))
 
-(defmacro define-conversion (cell-horizontal-size cell-vertical-size 
+(defmacro define-conversion (name (cell-horizontal-size cell-vertical-size) 
                              cell-characters)
   "Define size of pixel area (cell) to be converted to a single character,
   specify used characters and theirs corresponding pixels within the area.
 
   CELL-CHARACTERS is a list of (KEYWORD CHARACTER (PIXEL-NO1 PIXEL-NO2 ...)),
   where pixels are numerated starting from zero, left-to-right, up-to-down."
+  (declare (ignore name))
   (when (or (<= cell-horizontal-size 0) (<= cell-vertical-size 0)
             (/= (length cell-characters)
                 (length (remove-duplicates 
