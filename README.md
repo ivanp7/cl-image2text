@@ -11,7 +11,7 @@ and Unicode block characters.
 
 1. Install [Roswell](https://github.com/roswell/roswell) to your system.
 
-If you use Arch Linux, there is a package available in AUR: [roswell](https://aur.archlinux.org/packages/roswell/).
+If you use Arch-based Linux distro, there is a package available in AUR: [roswell](https://aur.archlinux.org/packages/roswell/).
 
 2. Install *image2text*:
 
